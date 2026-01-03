@@ -19,7 +19,9 @@ Also, it can detects if you copied this sentence from the internet: "To be or no
   const [toneTarget, setToneTarget] = useState<ToneTarget>(ToneTarget.PROFESSIONAL);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [promptCount, setPromptCount] = useState<number>(0);
-  const [isKeySelected, setIsKeySelected] = useState<boolean>(true); 
+  
+  // Strict initialization: If API_KEY is missing from env, force selection UI
+  const [isKeySelected, setIsKeySelected] = useState<boolean>(!!process.env.API_KEY && process.env.API_KEY !== "undefined"); 
   const [globalError, setGlobalError] = useState<string | null>(null);
 
   const syncKeyStatus = useCallback(async () => {
@@ -31,9 +33,9 @@ Also, it can detects if you copied this sentence from the internet: "To be or no
         return selected;
       }
     } catch (e) {
-      console.warn("Key status check bypassed:", e);
+      console.warn("Auth sync bypassed.");
     }
-    return true;
+    return !!process.env.API_KEY;
   }, []);
 
   useEffect(() => {
@@ -43,24 +45,31 @@ Also, it can detects if you copied this sentence from the internet: "To be or no
   }, [syncKeyStatus]);
 
   const handleConnectKey = () => {
+    console.log("Triggering explicit re-authentication flow...");
     setGlobalError(null);
-    setIsKeySelected(true);
+    setIsKeySelected(true); // Optimistically unlock UI
+    
     try {
       const win = window as any;
       if (win.aistudio && typeof win.aistudio.openSelectKey === 'function') {
         win.aistudio.openSelectKey().catch((err: any) => {
-          setGlobalError("Failed to open key selector: " + err.message);
+          setGlobalError("Connection Failed: " + (err.message || "User cancelled key selection."));
+          setIsKeySelected(false);
         });
+      } else {
+        setGlobalError("Environment Error: Key selection interface not available.");
       }
     } catch (e) {
-      setGlobalError("Critical error triggering key selection.");
+      setGlobalError("Unexpected Auth Error. Check browser console.");
     }
   };
 
   const handleCopyError = () => {
     if (globalError) {
-      navigator.clipboard.writeText(globalError);
-      alert("Error copied to clipboard!");
+      const log = `--- LinguistAI Error Log ---\nTimestamp: ${new Date().toISOString()}\nError: ${globalError}\nModel: gemini-3-flash-preview\n--------------------------`;
+      navigator.clipboard.writeText(log).then(() => {
+        alert("System log copied to clipboard.");
+      });
     }
   };
 
@@ -81,11 +90,11 @@ Also, it can detects if you copied this sentence from the internet: "To be or no
       setAnalysis(result);
       incrementPrompts();
     } catch (error: any) {
-      console.error("Analysis Failed:", error);
-      const msg = error.message || "Unknown error";
+      console.error("Diagnostic Log:", error);
+      const msg = error.message || "Unknown Engine Fault";
       setGlobalError(msg);
       
-      if (msg.toLowerCase().includes("not found") || msg.toLowerCase().includes("key") || msg.toLowerCase().includes("403")) {
+      if (msg.includes("MISSING_KEY") || msg.includes("API Key") || msg.includes("403") || msg.includes("not found")) {
         setIsKeySelected(false);
       }
     } finally {
@@ -102,7 +111,7 @@ Also, it can detects if you copied this sentence from the internet: "To be or no
       setPlagiarism(result);
       incrementPrompts();
     } catch (error: any) {
-      setGlobalError(error.message || "Plagiarism check failed.");
+      setGlobalError("Plagiarism Check Error: " + (error.message || "Web access failed."));
       if (error.message?.toLowerCase().includes("key")) setIsKeySelected(false);
     }
   };
@@ -175,7 +184,7 @@ Also, it can detects if you copied this sentence from the internet: "To be or no
       setAnalysis(null);
       incrementPrompts();
     } catch (e: any) {
-      setGlobalError(e.message || "AI Rewrite failed.");
+      setGlobalError("AI Transformation Failed: " + (e.message || "Unknown error"));
     }
   };
 
@@ -183,36 +192,38 @@ Also, it can detects if you copied this sentence from the internet: "To be or no
     <div className="flex flex-col h-screen bg-white overflow-hidden text-slate-900">
       <Navbar />
       
-      {/* Sleek Error Notification Banner */}
+      {/* Enhanced Interactive Error Banner */}
       {globalError && (
-        <div className="bg-gradient-to-r from-red-600 to-indigo-700 text-white px-6 py-3 flex items-center justify-between animate-in slide-in-from-top duration-300 z-[100] shadow-2xl">
-          <div className="flex items-center space-x-3 overflow-hidden">
-            <AlertCircle className="w-5 h-5 flex-shrink-0" />
+        <div className="bg-gradient-to-r from-red-600 via-rose-600 to-indigo-700 text-white px-6 py-4 flex items-center justify-between animate-in slide-in-from-top duration-500 z-[100] shadow-[0_20px_50px_rgba(0,0,0,0.2)]">
+          <div className="flex items-center space-x-4 overflow-hidden">
+            <div className="bg-white/20 p-2 rounded-xl">
+              <AlertCircle className="w-5 h-5 flex-shrink-0" />
+            </div>
             <div className="flex flex-col">
-              <span className="text-[10px] font-black uppercase tracking-widest opacity-70">System Exception</span>
-              <p className="text-xs font-bold truncate max-w-xl">{globalError}</p>
+              <span className="text-[10px] font-black uppercase tracking-[0.2em] opacity-80 mb-0.5">Execution Interrupted</span>
+              <p className="text-xs font-bold truncate max-w-2xl select-all cursor-text">{globalError}</p>
             </div>
           </div>
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-3">
             <button 
               onClick={handleCopyError}
-              className="flex items-center space-x-1 px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all"
+              className="flex items-center space-x-2 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border border-white/5"
             >
-              <Copy className="w-3 h-3" />
-              <span>Copy</span>
+              <Copy className="w-3.5 h-3.5" />
+              <span>Copy Log</span>
             </button>
             <button 
               onClick={handleConnectKey}
-              className="flex items-center space-x-1 px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all"
+              className="flex items-center space-x-2 px-4 py-2 bg-indigo-500 hover:bg-indigo-400 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg"
             >
-              <RefreshCw className="w-3 h-3" />
-              <span>Reconnect</span>
+              <RefreshCw className="w-3.5 h-3.5" />
+              <span>Fix Key</span>
             </button>
             <button 
               onClick={() => setGlobalError(null)}
-              className="p-1.5 hover:bg-white/10 rounded-full transition-all"
+              className="p-2 hover:bg-white/10 rounded-full transition-all"
             >
-              <X className="w-4 h-4" />
+              <X className="w-5 h-5" />
             </button>
           </div>
         </div>

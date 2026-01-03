@@ -2,12 +2,15 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { AnalysisResult, PlagiarismResult, SuggestionType, ToneTarget } from "../types";
 
-// Always initialize fresh to ensure we pick up the latest injected API_KEY
+// Helper to check for key existence before SDK initialization
 const getAIClient = () => {
-  return new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+  const apiKey = process.env.API_KEY;
+  if (!apiKey || apiKey === "undefined" || apiKey.length < 5) {
+    throw new Error("MISSING_KEY: No valid API Key found in environment. Please click 'Connect Cloud Key'.");
+  }
+  return new GoogleGenAI({ apiKey });
 };
 
-// gemini-3-flash-preview is more resilient for general purpose writing tasks
 const MODEL_NAME = "gemini-3-flash-preview"; 
 
 export const analyzeText = async (
@@ -91,8 +94,7 @@ export const analyzeText = async (
     return result;
 
   } catch (error: any) {
-    console.error("Gemini Analysis Error (Detailed):", error);
-    // Explicitly throw the error with message for the UI to catch
+    console.error("LinguistAI Engine Error:", error);
     throw new Error(error.message || "Unknown error occurred during analysis.");
   }
 };
@@ -126,7 +128,8 @@ export const checkPlagiarism = async (text: string): Promise<PlagiarismResult> =
       originalityScore: score, 
       status: score === 100 ? 'clean' : (score < 50 ? 'detected' : 'suspicious') 
     };
-  } catch (error) {
+  } catch (error: any) {
+    console.warn("Plagiarism Check Error:", error.message);
     return { matches: [], originalityScore: 100, status: 'clean' };
   }
 };
