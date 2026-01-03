@@ -5,7 +5,7 @@ import Editor from './components/Editor';
 import Sidebar from './components/Sidebar';
 import { AnalysisResult, PlagiarismResult, Suggestion, ToneTarget } from './types';
 import { analyzeText, checkPlagiarism, generateRewrite } from './services/geminiService';
-import { AlertCircle, Copy, X, RefreshCw } from 'lucide-react';
+import { AlertCircle, Copy, X, RefreshCw, Terminal } from 'lucide-react';
 
 const App: React.FC = () => {
   const [text, setText] = useState<string>(`Welcome to LinguistAI! This are a demo text to show you how the app work. It include some grammar mistaks and tone issues.
@@ -20,7 +20,7 @@ Also, it can detects if you copied this sentence from the internet: "To be or no
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [promptCount, setPromptCount] = useState<number>(0);
   
-  // Strict initialization: If API_KEY is missing from env, force selection UI
+  // Initialize based on existence of injected key
   const [isKeySelected, setIsKeySelected] = useState<boolean>(!!process.env.API_KEY && process.env.API_KEY !== "undefined"); 
   const [globalError, setGlobalError] = useState<string | null>(null);
 
@@ -33,7 +33,7 @@ Also, it can detects if you copied this sentence from the internet: "To be or no
         return selected;
       }
     } catch (e) {
-      console.warn("Auth sync bypassed.");
+      console.warn("Key status check skipped: Window bridge not available.");
     }
     return !!process.env.API_KEY;
   }, []);
@@ -45,31 +45,27 @@ Also, it can detects if you copied this sentence from the internet: "To be or no
   }, [syncKeyStatus]);
 
   const handleConnectKey = () => {
-    console.log("Triggering explicit re-authentication flow...");
     setGlobalError(null);
-    setIsKeySelected(true); // Optimistically unlock UI
+    const win = window as any;
     
-    try {
-      const win = window as any;
-      if (win.aistudio && typeof win.aistudio.openSelectKey === 'function') {
-        win.aistudio.openSelectKey().catch((err: any) => {
-          setGlobalError("Connection Failed: " + (err.message || "User cancelled key selection."));
-          setIsKeySelected(false);
-        });
-      } else {
-        setGlobalError("Environment Error: Key selection interface not available.");
-      }
-    } catch (e) {
-      setGlobalError("Unexpected Auth Error. Check browser console.");
+    // Safety check for the specific bridge required by prompt instructions
+    if (win.aistudio && typeof win.aistudio.openSelectKey === 'function') {
+      setIsKeySelected(true); // Unlock UI for the dialog
+      win.aistudio.openSelectKey().catch((err: any) => {
+        setGlobalError(`Auth Error: ${err.message || "Selection failed."}`);
+        setIsKeySelected(false);
+      });
+    } else {
+      // Provide a clear explanation for the 'Interface not available' error
+      setGlobalError("Environment Error: The 'AI Studio Key Selection' bridge is not present. This app must be run within the AI Studio preview environment.");
+      console.error("Critical: window.aistudio is missing. Cannot open key selector.");
     }
   };
 
   const handleCopyError = () => {
     if (globalError) {
-      const log = `--- LinguistAI Error Log ---\nTimestamp: ${new Date().toISOString()}\nError: ${globalError}\nModel: gemini-3-flash-preview\n--------------------------`;
-      navigator.clipboard.writeText(log).then(() => {
-        alert("System log copied to clipboard.");
-      });
+      const log = `--- LINGUIST AI SYSTEM LOG ---\n${new Date().toISOString()}\nError: ${globalError}\nBridge Available: ${!!(window as any).aistudio}\nKey Present: ${!!process.env.API_KEY}\n-----------------------------`;
+      navigator.clipboard.writeText(log).then(() => alert("Full log copied to clipboard."));
     }
   };
 
@@ -90,11 +86,12 @@ Also, it can detects if you copied this sentence from the internet: "To be or no
       setAnalysis(result);
       incrementPrompts();
     } catch (error: any) {
-      console.error("Diagnostic Log:", error);
+      console.error("SDK Fault:", error);
       const msg = error.message || "Unknown Engine Fault";
       setGlobalError(msg);
       
-      if (msg.includes("MISSING_KEY") || msg.includes("API Key") || msg.includes("403") || msg.includes("not found")) {
+      // If SDK says key is missing, lock the UI
+      if (msg.includes("API Key") || msg.includes("403") || msg.includes("MISSING_KEY")) {
         setIsKeySelected(false);
       }
     } finally {
@@ -111,8 +108,7 @@ Also, it can detects if you copied this sentence from the internet: "To be or no
       setPlagiarism(result);
       incrementPrompts();
     } catch (error: any) {
-      setGlobalError("Plagiarism Check Error: " + (error.message || "Web access failed."));
-      if (error.message?.toLowerCase().includes("key")) setIsKeySelected(false);
+      setGlobalError(`Web Check Error: ${error.message}`);
     }
   };
 
@@ -184,7 +180,7 @@ Also, it can detects if you copied this sentence from the internet: "To be or no
       setAnalysis(null);
       incrementPrompts();
     } catch (e: any) {
-      setGlobalError("AI Transformation Failed: " + (e.message || "Unknown error"));
+      setGlobalError(`Rewrite Failed: ${e.message}`);
     }
   };
 
@@ -192,32 +188,24 @@ Also, it can detects if you copied this sentence from the internet: "To be or no
     <div className="flex flex-col h-screen bg-white overflow-hidden text-slate-900">
       <Navbar />
       
-      {/* Enhanced Interactive Error Banner */}
       {globalError && (
-        <div className="bg-gradient-to-r from-red-600 via-rose-600 to-indigo-700 text-white px-6 py-4 flex items-center justify-between animate-in slide-in-from-top duration-500 z-[100] shadow-[0_20px_50px_rgba(0,0,0,0.2)]">
-          <div className="flex items-center space-x-4 overflow-hidden">
-            <div className="bg-white/20 p-2 rounded-xl">
-              <AlertCircle className="w-5 h-5 flex-shrink-0" />
+        <div className="bg-gradient-to-r from-red-600 to-indigo-700 text-white px-6 py-4 flex items-center justify-between animate-in slide-in-from-top duration-500 z-[100] shadow-2xl">
+          <div className="flex items-center space-x-4">
+            <div className="p-2 bg-white/20 rounded-xl">
+              <Terminal className="w-5 h-5" />
             </div>
-            <div className="flex flex-col">
-              <span className="text-[10px] font-black uppercase tracking-[0.2em] opacity-80 mb-0.5">Execution Interrupted</span>
-              <p className="text-xs font-bold truncate max-w-2xl select-all cursor-text">{globalError}</p>
+            <div>
+              <span className="text-[9px] font-black uppercase tracking-[0.2em] opacity-60 block">System Diagnostic Output</span>
+              <p className="text-xs font-bold font-mono">{globalError}</p>
             </div>
           </div>
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-2">
             <button 
               onClick={handleCopyError}
-              className="flex items-center space-x-2 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border border-white/5"
+              className="flex items-center space-x-2 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
             >
               <Copy className="w-3.5 h-3.5" />
-              <span>Copy Log</span>
-            </button>
-            <button 
-              onClick={handleConnectKey}
-              className="flex items-center space-x-2 px-4 py-2 bg-indigo-500 hover:bg-indigo-400 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg"
-            >
-              <RefreshCw className="w-3.5 h-3.5" />
-              <span>Fix Key</span>
+              <span>Copy Raw Error</span>
             </button>
             <button 
               onClick={() => setGlobalError(null)}

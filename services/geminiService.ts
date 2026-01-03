@@ -2,24 +2,25 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { AnalysisResult, PlagiarismResult, SuggestionType, ToneTarget } from "../types";
 
-// Helper to check for key existence before SDK initialization
-const getAIClient = () => {
-  const apiKey = process.env.API_KEY;
-  if (!apiKey || apiKey === "undefined" || apiKey.length < 5) {
-    throw new Error("MISSING_KEY: No valid API Key found in environment. Please click 'Connect Cloud Key'.");
-  }
-  return new GoogleGenAI({ apiKey });
-};
-
 const MODEL_NAME = "gemini-3-flash-preview"; 
+
+/**
+ * Utility to execute a Gemini call with immediate instance creation.
+ * This ensures we always use the latest environment-injected API_KEY.
+ */
+const callGemini = async (fn: (ai: GoogleGenAI) => Promise<any>) => {
+  const apiKey = process.env.API_KEY;
+  // If we have no key at all, we'll let the SDK throw its standard browser error
+  // which is exactly what the user is seeing. We catch it in the UI layer.
+  const ai = new GoogleGenAI({ apiKey: apiKey as string });
+  return await fn(ai);
+};
 
 export const analyzeText = async (
   text: string, 
   targetTone: ToneTarget
 ): Promise<AnalysisResult> => {
-  try {
-    const ai = getAIClient();
-    
+  return await callGemini(async (ai) => {
     const toneInstruction = targetTone === ToneTarget.JOURNALISTIC
       ? "JOURNALISTIC: Adhere strictly to AP Style. Focus on the 'Inverted Pyramid', use active voice, and eliminate editorializing."
       : targetTone;
@@ -87,24 +88,19 @@ export const analyzeText = async (
       },
     });
 
-    if (!response.text) throw new Error("API returned an empty response.");
+    if (!response.text) throw new Error("LinguistAI: Empty response from engine.");
     
     const result = JSON.parse(response.text) as AnalysisResult;
     result.suggestions = result.suggestions.map((s, i) => ({ ...s, id: `sug-${Date.now()}-${i}` }));
     return result;
-
-  } catch (error: any) {
-    console.error("LinguistAI Engine Error:", error);
-    throw new Error(error.message || "Unknown error occurred during analysis.");
-  }
+  });
 };
 
 export const checkPlagiarism = async (text: string): Promise<PlagiarismResult> => {
-  try {
-    const ai = getAIClient();
+  return await callGemini(async (ai) => {
     const response = await ai.models.generateContent({
       model: MODEL_NAME,
-      contents: `Check this text for plagiarism: "${text.substring(0, 1500)}"`,
+      contents: `Check this text for potential plagiarism or common matches online: "${text.substring(0, 1500)}"`,
       config: { tools: [{ googleSearch: {} }] },
     });
 
@@ -114,7 +110,7 @@ export const checkPlagiarism = async (text: string): Promise<PlagiarismResult> =
       for (const chunk of groundingChunks) {
         if (chunk.web) {
           matches.push({
-            segment: "Potential match found in external source.",
+            segment: "Potential match detected.",
             sourceUrl: chunk.web.uri,
             sourceTitle: chunk.web.title,
             similarity: "Medium"
@@ -128,17 +124,15 @@ export const checkPlagiarism = async (text: string): Promise<PlagiarismResult> =
       originalityScore: score, 
       status: score === 100 ? 'clean' : (score < 50 ? 'detected' : 'suspicious') 
     };
-  } catch (error: any) {
-    console.warn("Plagiarism Check Error:", error.message);
-    return { matches: [], originalityScore: 100, status: 'clean' };
-  }
+  });
 };
 
 export const generateRewrite = async (text: string, instruction: string): Promise<string> => {
-  const ai = getAIClient();
-  const response = await ai.models.generateContent({
-    model: MODEL_NAME,
-    contents: `Rewrite this text. Instruction: ${instruction}. Text: "${text}"`,
+  return await callGemini(async (ai) => {
+    const response = await ai.models.generateContent({
+      model: MODEL_NAME,
+      contents: `Perform the following rewrite instruction on the text. Instruction: ${instruction}. Text: "${text}"`,
+    });
+    return response.text?.trim() || text;
   });
-  return response.text?.trim() || text;
 };
