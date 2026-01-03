@@ -39,6 +39,7 @@ interface SidebarProps {
   promptCount: number;
   isKeySelected: boolean;
   onConnectKey: () => void;
+  onEnterDemo: () => void;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ 
@@ -55,7 +56,8 @@ const Sidebar: React.FC<SidebarProps> = ({
   onRewrite,
   promptCount,
   isKeySelected,
-  onConnectKey
+  onConnectKey,
+  onEnterDemo
 }) => {
   const [activeTab, setActiveTab] = useState<'suggestions' | 'genai' | 'plagiarism'>('suggestions');
   const [customPrompt, setCustomPrompt] = useState('');
@@ -79,7 +81,7 @@ const Sidebar: React.FC<SidebarProps> = ({
 
   return (
     <div className="h-full bg-slate-50 border-l border-gray-100 flex flex-col w-full relative">
-      {/* Enhanced Connection Diagnostic Overlay */}
+      {/* Connection Diagnostic Overlay */}
       {!isKeySelected && (
         <div className="absolute inset-0 z-[60] bg-white/80 backdrop-blur-xl flex flex-col items-center justify-center p-8 text-center animate-in fade-in duration-500">
           <div className="bg-white p-10 rounded-[3.5rem] shadow-[0_40px_80px_-15px_rgba(0,0,0,0.12)] border border-indigo-50 max-w-sm w-full animate-in zoom-in duration-500">
@@ -90,7 +92,7 @@ const Sidebar: React.FC<SidebarProps> = ({
             <h3 className="text-2xl font-black text-slate-900 mb-2 uppercase tracking-tight">System Offline</h3>
             <p className="text-xs text-slate-400 font-bold uppercase tracking-[0.2em] mb-8">Authentication Required</p>
             
-            <div className="space-y-3 mb-10">
+            <div className="space-y-3 mb-8">
               <div className={`p-4 rounded-3xl border flex items-center justify-between transition-all ${isBridgeAvailable ? 'bg-green-50/50 border-green-100' : 'bg-slate-50 border-slate-100'}`}>
                 <div className="flex items-center space-x-3 text-left">
                   <Activity className={`w-5 h-5 ${isBridgeAvailable ? 'text-green-500' : 'text-slate-300'}`} />
@@ -114,10 +116,10 @@ const Sidebar: React.FC<SidebarProps> = ({
               </div>
             </div>
 
-            <div className="space-y-4">
+            <div className="space-y-3">
               <button 
                 onClick={onConnectKey}
-                className="w-full flex items-center justify-center space-x-3 py-6 bg-indigo-600 text-white rounded-[2rem] font-black text-xs uppercase tracking-[0.2em] shadow-2xl shadow-indigo-100 hover:bg-indigo-700 hover:-translate-y-1 active:scale-95 transition-all cursor-pointer pointer-events-auto"
+                className="w-full flex items-center justify-center space-x-3 py-5 bg-indigo-600 text-white rounded-[1.5rem] font-black text-xs uppercase tracking-[0.2em] shadow-xl shadow-indigo-100 hover:bg-indigo-700 hover:-translate-y-1 active:scale-95 transition-all cursor-pointer pointer-events-auto"
               >
                 {isBridgeAvailable ? (
                   <>
@@ -132,24 +134,28 @@ const Sidebar: React.FC<SidebarProps> = ({
                 )}
               </button>
 
+              <div className="flex items-center space-x-2 py-2">
+                <div className="flex-1 h-px bg-slate-100"></div>
+                <span className="text-[9px] font-black text-slate-300 uppercase tracking-widest">OR</span>
+                <div className="flex-1 h-px bg-slate-100"></div>
+              </div>
+
+              <button 
+                onClick={onEnterDemo}
+                className="w-full flex items-center justify-center space-x-3 py-5 bg-white text-indigo-600 border-2 border-indigo-50 rounded-[1.5rem] font-black text-xs uppercase tracking-[0.2em] shadow-sm hover:bg-indigo-50 hover:border-indigo-100 transition-all active:scale-95 cursor-pointer pointer-events-auto"
+              >
+                <PlayCircle className="w-5 h-5" />
+                <span>Launch Prototype</span>
+              </button>
+
               <div className="pt-4 border-t border-slate-50">
-                <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest leading-relaxed px-4">
+                <p className="text-[8px] text-slate-400 font-bold uppercase tracking-widest leading-relaxed px-4">
                   {!isBridgeAvailable 
-                    ? "Standalone mode requires an API_KEY environment variable. Check the logs at the top for details." 
-                    : "Select a key from a paid GCP project to enable AI features."
+                    ? "Tip: Add an API_KEY environment variable to your project to enable the live engine." 
+                    : "Tip: Select a key from a paid GCP project for live AI functionality."
                   }
                 </p>
               </div>
-
-              <a 
-                href="https://ai.google.dev/gemini-api/docs/billing" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="flex items-center justify-center space-x-2 text-[10px] font-black text-indigo-400 uppercase tracking-widest hover:text-indigo-600 transition-colors pointer-events-auto pt-2"
-              >
-                <span>Billing Documentation</span>
-                <ExternalLink className="w-3 h-3" />
-              </a>
             </div>
           </div>
         </div>

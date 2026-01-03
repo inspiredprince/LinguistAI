@@ -24,6 +24,14 @@ const MOCK_ANALYSIS: AnalysisResult = {
       suggestedText: 'assists you in refining your prose',
       explanation: 'Elevates the professional tone of the concluding sentence.',
       context: 'LinguistAI help you fix this.'
+    },
+    {
+      id: 'mock-3',
+      type: SuggestionType.CLARITY,
+      originalText: 'mistaks',
+      suggestedText: 'mistakes',
+      explanation: 'Spelling error corrected.',
+      context: 'some grammar mistaks and'
     }
   ],
   overallScore: 82,
@@ -66,7 +74,6 @@ Also, it can detects if you copied this sentence from the internet: "To be or no
   const [promptCount, setPromptCount] = useState<number>(0);
   const [isDemoMode, setIsDemoMode] = useState<boolean>(false);
   
-  // Check if a real key is available (either via AI Studio or Env)
   const [isKeySelected, setIsKeySelected] = useState<boolean>(
     !!process.env.API_KEY && process.env.API_KEY !== "undefined" && process.env.API_KEY !== ""
   ); 
@@ -118,12 +125,16 @@ Also, it can detects if you copied this sentence from the internet: "To be or no
   const handleEnterDemo = () => {
     setIsDemoMode(true);
     setGlobalError(null);
+    // Auto-analyze to show something immediately in demo mode
+    setTimeout(() => {
+        handleAnalyze();
+    }, 100);
   };
 
   const handleCopyError = () => {
     if (globalError) {
       const log = `--- LINGUIST AI SYSTEM LOG ---\n${new Date().toISOString()}\nError: ${globalError}\nBridge Available: ${!!(window as any).aistudio}\nKey Present: ${!!process.env.API_KEY}\nKey Value Valid: ${!!process.env.API_KEY && process.env.API_KEY !== "undefined"}\n-----------------------------`;
-      navigator.clipboard.writeText(log).then(() => alert("System log copied. Support will use this to debug your environment."));
+      navigator.clipboard.writeText(log).then(() => alert("System log copied to clipboard."));
     }
   };
 
@@ -142,7 +153,6 @@ Also, it can detects if you copied this sentence from the internet: "To be or no
     
     try {
       if (isDemoMode && !isKeySelected) {
-        // Use simulation logic for demo mode
         await new Promise(r => setTimeout(r, 1500));
         setAnalysis(MOCK_ANALYSIS);
       } else {
@@ -297,6 +307,7 @@ Also, it can detects if you copied this sentence from the internet: "To be or no
             promptCount={promptCount}
             isKeySelected={isKeySelected || isDemoMode}
             onConnectKey={handleConnectKey}
+            onEnterDemo={handleEnterDemo}
           />
         </div>
       </main>
