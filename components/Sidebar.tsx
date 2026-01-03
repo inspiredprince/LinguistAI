@@ -18,7 +18,9 @@ import {
   Lock,
   AlertCircle,
   Terminal,
-  RefreshCw
+  RefreshCw,
+  Cpu,
+  Globe
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -60,6 +62,7 @@ const Sidebar: React.FC<SidebarProps> = ({
 
   // Check if we are inside AI Studio or in a standalone environment
   const isBridgeAvailable = !!(window as any).aistudio;
+  const hasEnvKey = !!process.env.API_KEY && process.env.API_KEY !== "undefined";
 
   const handleRewrite = async () => {
     if (!customPrompt.trim()) return;
@@ -76,62 +79,78 @@ const Sidebar: React.FC<SidebarProps> = ({
 
   return (
     <div className="h-full bg-slate-50 border-l border-gray-100 flex flex-col w-full relative">
-      {/* Dynamic API Connection Overlay */}
+      {/* Enhanced Connection Diagnostic Overlay */}
       {!isKeySelected && (
-        <div className="absolute inset-0 z-[60] bg-white/95 backdrop-blur-md flex flex-col items-center justify-center p-8 text-center animate-in fade-in duration-300">
-          <div className="bg-white p-10 rounded-[3rem] shadow-[0_32px_64px_-12px_rgba(0,0,0,0.15)] border border-indigo-50 max-w-sm animate-in zoom-in duration-500">
-            <div className="w-20 h-20 bg-indigo-600 rounded-[2rem] flex items-center justify-center mx-auto mb-8 shadow-2xl shadow-indigo-200">
-              <Lock className="w-10 h-10 text-white" />
+        <div className="absolute inset-0 z-[60] bg-white/80 backdrop-blur-xl flex flex-col items-center justify-center p-8 text-center animate-in fade-in duration-500">
+          <div className="bg-white p-10 rounded-[3.5rem] shadow-[0_40px_80px_-15px_rgba(0,0,0,0.12)] border border-indigo-50 max-w-sm w-full animate-in zoom-in duration-500">
+            <div className="w-24 h-24 bg-gradient-to-br from-indigo-600 to-indigo-800 rounded-[2.5rem] flex items-center justify-center mx-auto mb-8 shadow-2xl shadow-indigo-200 rotate-3">
+              <Cpu className="w-12 h-12 text-white" />
             </div>
-            <h3 className="text-xl font-black text-slate-900 mb-3 uppercase tracking-tight">Access Restricted</h3>
             
-            {!isBridgeAvailable ? (
-              <div className="space-y-4 mb-8">
-                <div className="p-4 bg-amber-50 rounded-2xl border border-amber-100 flex items-start space-x-3 text-left">
-                  <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
-                  <p className="text-[11px] text-amber-800 font-medium leading-relaxed">
-                    <strong>Environment Mismatch:</strong> Standalone browser detected. Automated key selection requires <strong>Google AI Studio</strong>.
-                  </p>
+            <h3 className="text-2xl font-black text-slate-900 mb-2 uppercase tracking-tight">System Offline</h3>
+            <p className="text-xs text-slate-400 font-bold uppercase tracking-[0.2em] mb-8">Authentication Required</p>
+            
+            <div className="space-y-3 mb-10">
+              <div className={`p-4 rounded-3xl border flex items-center justify-between transition-all ${isBridgeAvailable ? 'bg-green-50/50 border-green-100' : 'bg-slate-50 border-slate-100'}`}>
+                <div className="flex items-center space-x-3 text-left">
+                  <Activity className={`w-5 h-5 ${isBridgeAvailable ? 'text-green-500' : 'text-slate-300'}`} />
+                  <div>
+                    <p className="text-[10px] font-black uppercase text-slate-800 tracking-tighter">AI Studio Bridge</p>
+                    <p className="text-[9px] font-medium text-slate-500">{isBridgeAvailable ? 'Detected & Ready' : 'Not Found (Standalone)'}</p>
+                  </div>
                 </div>
-                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 flex items-start space-x-3 text-left">
-                  <Terminal className="w-5 h-5 text-slate-600 flex-shrink-0 mt-0.5" />
-                  <p className="text-[11px] text-slate-600 font-medium leading-relaxed">
-                    <strong>Deployment Setup:</strong> Set the <code>API_KEY</code> environment variable in your hosting dashboard to enable standalone access.
-                  </p>
-                </div>
+                <div className={`w-2 h-2 rounded-full ${isBridgeAvailable ? 'bg-green-500 animate-pulse' : 'bg-slate-300'}`}></div>
               </div>
-            ) : (
-              <p className="text-sm text-slate-500 mb-10 leading-relaxed font-medium">
-                Please click below to select a Gemini API key from a <strong>paid GCP project</strong>.
-              </p>
-            )}
-            
-            <button 
-              onClick={onConnectKey}
-              className="w-full flex items-center justify-center space-x-3 py-5 bg-indigo-600 text-white rounded-3xl font-black text-xs uppercase tracking-[0.2em] shadow-2xl shadow-indigo-100 hover:bg-indigo-700 hover:scale-[1.02] active:scale-95 transition-all mb-4 cursor-pointer relative z-[70] pointer-events-auto"
-            >
-              {isBridgeAvailable ? (
-                <>
-                  <CloudLightning className="w-5 h-5" />
-                  <span>Connect Cloud Key</span>
-                </>
-              ) : (
-                <>
-                  <RefreshCw className="w-5 h-5" />
-                  <span>Re-scan Environment</span>
-                </>
-              )}
-            </button>
-            
-            <a 
-              href="https://ai.google.dev/gemini-api/docs/billing" 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="flex items-center justify-center space-x-2 text-[10px] font-black text-indigo-400 uppercase tracking-widest hover:text-indigo-600 transition-colors pointer-events-auto mt-2"
-            >
-              <span>View Requirements</span>
-              <ExternalLink className="w-3 h-3" />
-            </a>
+
+              <div className={`p-4 rounded-3xl border flex items-center justify-between transition-all ${hasEnvKey ? 'bg-green-50/50 border-green-100' : 'bg-slate-50 border-slate-100'}`}>
+                <div className="flex items-center space-x-3 text-left">
+                  <Globe className={`w-5 h-5 ${hasEnvKey ? 'text-green-500' : 'text-slate-300'}`} />
+                  <div>
+                    <p className="text-[10px] font-black uppercase text-slate-800 tracking-tighter">Cloud Environment</p>
+                    <p className="text-[9px] font-medium text-slate-500">{hasEnvKey ? 'Variable Loaded' : 'Missing API_KEY'}</p>
+                  </div>
+                </div>
+                <div className={`w-2 h-2 rounded-full ${hasEnvKey ? 'bg-green-500' : 'bg-slate-300'}`}></div>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <button 
+                onClick={onConnectKey}
+                className="w-full flex items-center justify-center space-x-3 py-6 bg-indigo-600 text-white rounded-[2rem] font-black text-xs uppercase tracking-[0.2em] shadow-2xl shadow-indigo-100 hover:bg-indigo-700 hover:-translate-y-1 active:scale-95 transition-all cursor-pointer pointer-events-auto"
+              >
+                {isBridgeAvailable ? (
+                  <>
+                    <CloudLightning className="w-5 h-5" />
+                    <span>Authorize Key</span>
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="w-5 h-5" />
+                    <span>Re-Scan System</span>
+                  </>
+                )}
+              </button>
+
+              <div className="pt-4 border-t border-slate-50">
+                <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest leading-relaxed px-4">
+                  {!isBridgeAvailable 
+                    ? "Tip: To use standalone mode, add an API_KEY environment variable to your project settings." 
+                    : "Tip: Select a key from a paid GCP project to enable all features."
+                  }
+                </p>
+              </div>
+
+              <a 
+                href="https://ai.google.dev/gemini-api/docs/billing" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="flex items-center justify-center space-x-2 text-[10px] font-black text-indigo-400 uppercase tracking-widest hover:text-indigo-600 transition-colors pointer-events-auto pt-2"
+              >
+                <span>Billing Documentation</span>
+                <ExternalLink className="w-3 h-3" />
+              </a>
+            </div>
           </div>
         </div>
       )}
