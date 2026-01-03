@@ -21,21 +21,29 @@ Also, it can detects if you copied this sentence from the internet: "To be or no
   const [promptCount, setPromptCount] = useState<number>(0);
   
   // Initialize based on existence of injected key
-  const [isKeySelected, setIsKeySelected] = useState<boolean>(!!process.env.API_KEY && process.env.API_KEY !== "undefined"); 
+  const [isKeySelected, setIsKeySelected] = useState<boolean>(!!process.env.API_KEY && process.env.API_KEY !== "undefined" && process.env.API_KEY !== ""); 
   const [globalError, setGlobalError] = useState<string | null>(null);
 
   const syncKeyStatus = useCallback(async () => {
     try {
       const win = window as any;
+      // 1. Check AI Studio Bridge
       if (win.aistudio && typeof win.aistudio.hasSelectedApiKey === 'function') {
         const selected = await win.aistudio.hasSelectedApiKey();
-        setIsKeySelected(selected);
-        return selected;
+        if (selected) {
+          setIsKeySelected(true);
+          return true;
+        }
       }
+      
+      // 2. Fallback to Environment Variable
+      const hasEnvKey = !!process.env.API_KEY && process.env.API_KEY !== "undefined" && process.env.API_KEY !== "";
+      setIsKeySelected(hasEnvKey);
+      return hasEnvKey;
     } catch (e) {
       console.warn("Key status check skipped: Window bridge not available.");
+      return !!process.env.API_KEY;
     }
-    return !!process.env.API_KEY;
   }, []);
 
   useEffect(() => {
@@ -44,27 +52,31 @@ Also, it can detects if you copied this sentence from the internet: "To be or no
     syncKeyStatus();
   }, [syncKeyStatus]);
 
-  const handleConnectKey = () => {
+  const handleConnectKey = async () => {
     setGlobalError(null);
     const win = window as any;
     
-    // Safety check for the specific bridge required by prompt instructions
     if (win.aistudio && typeof win.aistudio.openSelectKey === 'function') {
-      setIsKeySelected(true); // Unlock UI for the dialog
-      win.aistudio.openSelectKey().catch((err: any) => {
+      try {
+        await win.aistudio.openSelectKey();
+        // After opening, we assume success as per race-condition rules
+        setIsKeySelected(true);
+      } catch (err: any) {
         setGlobalError(`Auth Error: ${err.message || "Selection failed."}`);
         setIsKeySelected(false);
-      });
+      }
     } else {
-      // Provide a clear explanation for the 'Interface not available' error
-      setGlobalError("Environment Error: The 'AI Studio Key Selection' bridge is not present. This app must be run within the AI Studio preview environment.");
-      console.error("Critical: window.aistudio is missing. Cannot open key selector.");
+      // Manual re-scan if bridge is missing
+      const found = await syncKeyStatus();
+      if (!found) {
+        setGlobalError("Connection Failed: No API Key detected in environment. If you just added a key to your hosting provider (e.g. Vercel), you may need to redeploy or restart the dev server.");
+      }
     }
   };
 
   const handleCopyError = () => {
     if (globalError) {
-      const log = `--- LINGUIST AI SYSTEM LOG ---\n${new Date().toISOString()}\nError: ${globalError}\nBridge Available: ${!!(window as any).aistudio}\nKey Present: ${!!process.env.API_KEY}\n-----------------------------`;
+      const log = `--- LINGUIST AI SYSTEM LOG ---\n${new Date().toISOString()}\nError: ${globalError}\nBridge Available: ${!!(window as any).aistudio}\nKey Present: ${!!process.env.API_KEY}\nKey Value Valid: ${!!process.env.API_KEY && process.env.API_KEY !== "undefined"}\n-----------------------------`;
       navigator.clipboard.writeText(log).then(() => alert("Full log copied to clipboard."));
     }
   };
@@ -90,7 +102,6 @@ Also, it can detects if you copied this sentence from the internet: "To be or no
       const msg = error.message || "Unknown Engine Fault";
       setGlobalError(msg);
       
-      // If SDK says key is missing, lock the UI
       if (msg.includes("API Key") || msg.includes("403") || msg.includes("MISSING_KEY")) {
         setIsKeySelected(false);
       }

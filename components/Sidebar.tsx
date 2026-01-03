@@ -17,7 +17,8 @@ import {
   ExternalLink,
   Lock,
   AlertCircle,
-  Terminal
+  Terminal,
+  RefreshCw
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -85,17 +86,17 @@ const Sidebar: React.FC<SidebarProps> = ({
             <h3 className="text-xl font-black text-slate-900 mb-3 uppercase tracking-tight">Access Restricted</h3>
             
             {!isBridgeAvailable ? (
-              <div className="space-y-4">
+              <div className="space-y-4 mb-8">
                 <div className="p-4 bg-amber-50 rounded-2xl border border-amber-100 flex items-start space-x-3 text-left">
                   <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
                   <p className="text-[11px] text-amber-800 font-medium leading-relaxed">
-                    <strong>Environment Mismatch:</strong> This app is running in a standalone browser. To use automatic key selection, run this in the <strong>Google AI Studio Preview</strong>.
+                    <strong>Environment Mismatch:</strong> Standalone browser detected. Automated key selection requires <strong>Google AI Studio</strong>.
                   </p>
                 </div>
                 <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 flex items-start space-x-3 text-left">
                   <Terminal className="w-5 h-5 text-slate-600 flex-shrink-0 mt-0.5" />
                   <p className="text-[11px] text-slate-600 font-medium leading-relaxed">
-                    <strong>Manual Setup:</strong> If deployed, ensure the <code>API_KEY</code> environment variable is configured in your hosting dashboard.
+                    <strong>Deployment Setup:</strong> Set the <code>API_KEY</code> environment variable in your hosting dashboard to enable standalone access.
                   </p>
                 </div>
               </div>
@@ -105,21 +106,28 @@ const Sidebar: React.FC<SidebarProps> = ({
               </p>
             )}
             
-            {isBridgeAvailable && (
-              <button 
-                onClick={onConnectKey}
-                className="w-full flex items-center justify-center space-x-3 py-5 bg-indigo-600 text-white rounded-3xl font-black text-xs uppercase tracking-[0.2em] shadow-2xl shadow-indigo-100 hover:bg-indigo-700 hover:scale-[1.02] active:scale-95 transition-all mb-6 cursor-pointer relative z-[70] pointer-events-auto"
-              >
-                <CloudLightning className="w-5 h-5" />
-                <span>Connect Cloud Key</span>
-              </button>
-            )}
+            <button 
+              onClick={onConnectKey}
+              className="w-full flex items-center justify-center space-x-3 py-5 bg-indigo-600 text-white rounded-3xl font-black text-xs uppercase tracking-[0.2em] shadow-2xl shadow-indigo-100 hover:bg-indigo-700 hover:scale-[1.02] active:scale-95 transition-all mb-4 cursor-pointer relative z-[70] pointer-events-auto"
+            >
+              {isBridgeAvailable ? (
+                <>
+                  <CloudLightning className="w-5 h-5" />
+                  <span>Connect Cloud Key</span>
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="w-5 h-5" />
+                  <span>Re-scan Environment</span>
+                </>
+              )}
+            </button>
             
             <a 
               href="https://ai.google.dev/gemini-api/docs/billing" 
               target="_blank" 
               rel="noopener noreferrer"
-              className="flex items-center justify-center space-x-2 text-[10px] font-black text-indigo-400 uppercase tracking-widest hover:text-indigo-600 transition-colors pointer-events-auto mt-4"
+              className="flex items-center justify-center space-x-2 text-[10px] font-black text-indigo-400 uppercase tracking-widest hover:text-indigo-600 transition-colors pointer-events-auto mt-2"
             >
               <span>View Requirements</span>
               <ExternalLink className="w-3 h-3" />
