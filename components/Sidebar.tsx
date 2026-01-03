@@ -21,7 +21,11 @@ import {
   RefreshCw,
   Cpu,
   Globe,
-  PlayCircle
+  PlayCircle,
+  BookOpen,
+  Info,
+  ChevronRight,
+  GraduationCap
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -81,7 +85,6 @@ const Sidebar: React.FC<SidebarProps> = ({
 
   return (
     <div className="h-full bg-slate-50 border-l border-gray-100 flex flex-col w-full relative">
-      {/* Connection Diagnostic Overlay */}
       {!isKeySelected && (
         <div className="absolute inset-0 z-[60] bg-white/80 backdrop-blur-xl flex flex-col items-center justify-center p-8 text-center animate-in fade-in duration-500">
           <div className="bg-white p-10 rounded-[3.5rem] shadow-[0_40px_80px_-15px_rgba(0,0,0,0.12)] border border-indigo-50 max-w-sm w-full animate-in zoom-in duration-500">
@@ -147,15 +150,6 @@ const Sidebar: React.FC<SidebarProps> = ({
                 <PlayCircle className="w-5 h-5" />
                 <span>Launch Prototype</span>
               </button>
-
-              <div className="pt-4 border-t border-slate-50">
-                <p className="text-[8px] text-slate-400 font-bold uppercase tracking-widest leading-relaxed px-4">
-                  {!isBridgeAvailable 
-                    ? "Tip: Add an API_KEY environment variable to your project to enable the live engine." 
-                    : "Tip: Select a key from a paid GCP project for live AI functionality."
-                  }
-                </p>
-              </div>
             </div>
           </div>
         </div>
@@ -185,7 +179,7 @@ const Sidebar: React.FC<SidebarProps> = ({
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
+      <div className="flex-1 overflow-y-auto p-6 custom-scrollbar pb-10">
         {activeTab === 'suggestions' && (
           <div className="space-y-6">
             <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
@@ -194,7 +188,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                  <div className={`flex items-center space-x-1.5 px-2 py-1 rounded-full border ${isKeySelected ? 'bg-indigo-50 border-indigo-100' : 'bg-red-50 border-red-100'}`}>
                     {isKeySelected ? <PlayCircle className="w-2.5 h-2.5 text-indigo-500" /> : <CloudOff className="w-2.5 h-2.5 text-red-500" />}
                     <span className={`text-[8px] font-black uppercase ${isKeySelected ? 'text-indigo-700' : 'text-red-700'}`}>
-                      {isKeySelected ? 'Prototype Active' : 'Offline'}
+                      {isKeySelected ? 'Engine Active' : 'Offline'}
                     </span>
                  </div>
               </div>
@@ -215,7 +209,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                   isAnalyzing || !isKeySelected ? 'bg-indigo-300 cursor-not-allowed shadow-none' : 'bg-indigo-600 hover:bg-indigo-700'
                 }`}
               >
-                {isAnalyzing ? 'Processing AI...' : 'Run Diagnostics'}
+                {isAnalyzing ? 'Processing AI...' : 'Deep Diagnostic'}
               </button>
             </div>
 
@@ -236,14 +230,19 @@ const Sidebar: React.FC<SidebarProps> = ({
                   </div>
                 </div>
 
+                {/* Suggestions Section */}
                 <div className="space-y-4">
+                  <div className="flex items-center justify-between px-2">
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Correction Queue</span>
+                    <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">{analysis.suggestions.length} Found</span>
+                  </div>
                   {analysis.suggestions.length > 0 && (
                     <button 
                       onClick={onAcceptAll}
                       className="w-full flex items-center justify-center space-x-3 py-4 bg-emerald-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] hover:bg-emerald-700 shadow-xl shadow-emerald-100 transition-all active:scale-[0.98]"
                     >
                       <CheckCheck className="w-4 h-4" />
-                      <span>Accept {analysis.suggestions.length} Fixes</span>
+                      <span>Accept All Fixes</span>
                     </button>
                   )}
 
@@ -255,6 +254,63 @@ const Sidebar: React.FC<SidebarProps> = ({
                       onDismiss={onDismissSuggestion} 
                     />
                   ))}
+                </div>
+
+                {/* Learning Review Insights Section */}
+                <div className="mt-10 space-y-6 pt-6 border-t border-gray-100">
+                  <div className="flex items-center space-x-2 px-2">
+                    <GraduationCap className="w-4 h-4 text-indigo-600" />
+                    <span className="text-[10px] font-black text-slate-800 uppercase tracking-[0.2em]">Deep Insights</span>
+                  </div>
+
+                  <div className="bg-white rounded-[2rem] p-6 border border-gray-100 shadow-sm space-y-6">
+                    {/* General Feedback */}
+                    <div>
+                      <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center">
+                        <Info className="w-3 h-3 mr-2" />
+                        Executive Summary
+                      </h4>
+                      <p className="text-sm text-slate-600 font-medium leading-relaxed italic">
+                        "{analysis.learningReview.generalFeedback}"
+                      </p>
+                    </div>
+
+                    {/* Focus Areas */}
+                    <div>
+                      <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Improvement Domains</h4>
+                      <div className="flex flex-wrap gap-2">
+                        {analysis.learningReview.grammarFocusAreas.map((area, idx) => (
+                          <span key={idx} className="px-3 py-1.5 bg-indigo-50 text-indigo-700 rounded-xl text-[9px] font-black uppercase tracking-widest border border-indigo-100">
+                            {area}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Vocabulary Tips */}
+                    <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                      <h4 className="text-[10px] font-black text-slate-800 uppercase tracking-widest mb-2 flex items-center">
+                        <BookOpen className="w-3.5 h-3.5 mr-2 text-indigo-600" />
+                        Vocabulary Tip
+                      </h4>
+                      <p className="text-xs text-slate-500 font-medium leading-relaxed">
+                        {analysis.learningReview.vocabularyTips}
+                      </p>
+                    </div>
+
+                    {/* Recommended Resources */}
+                    <div>
+                      <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Mastery Track</h4>
+                      <div className="space-y-2">
+                        {analysis.learningReview.recommendedResources.map((resource, idx) => (
+                          <div key={idx} className="flex items-center justify-between p-3 bg-white border border-gray-50 rounded-xl group hover:border-indigo-100 transition-colors cursor-pointer">
+                            <span className="text-[10px] font-bold text-slate-600 group-hover:text-indigo-600 transition-colors">{resource}</span>
+                            <ChevronRight className="w-3 h-3 text-slate-300 group-hover:text-indigo-400 transition-all" />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </>
             ) : (

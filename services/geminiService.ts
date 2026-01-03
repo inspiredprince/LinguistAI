@@ -2,20 +2,14 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { AnalysisResult, PlagiarismResult, SuggestionType, ToneTarget } from "../types";
 
-const MODEL_NAME = "gemini-3-flash-preview"; 
+// Upgraded to Pro for "Complex Text Tasks" like advanced grammar reasoning
+const MODEL_NAME = "gemini-3-pro-preview"; 
 
-/**
- * Utility to execute a Gemini call with safety checks.
- * Prevents the SDK from throwing a "Key must be set" error by validating first.
- */
 const callGemini = async (fn: (ai: GoogleGenAI) => Promise<any>) => {
   const apiKey = process.env.API_KEY;
-  
   if (!apiKey || apiKey === "undefined" || apiKey.trim() === "") {
-    throw new Error("CONNECTION_REQUIRED: No API Key found. Please ensure you are running in AI Studio Preview or have set the API_KEY environment variable.");
+    throw new Error("CONNECTION_REQUIRED: No API Key found.");
   }
-
-  // Only instantiate once we know we have a key string
   const ai = new GoogleGenAI({ apiKey });
   return await fn(ai);
 };
@@ -25,28 +19,34 @@ export const analyzeText = async (
   targetTone: ToneTarget
 ): Promise<AnalysisResult> => {
   return await callGemini(async (ai) => {
-    const toneInstruction = targetTone === ToneTarget.JOURNALISTIC
-      ? "JOURNALISTIC: Adhere strictly to AP Style. Focus on the 'Inverted Pyramid', use active voice, and eliminate editorializing."
-      : targetTone;
-
     const prompt = `
-      Analyze this text for grammar, clarity, and tone (Target: ${toneInstruction}).
+      You are a world-class senior editor and linguistic analyst. 
+      Analyze the provided text with extreme precision. 
       
-      Return a JSON object:
-      - suggestions: Array of {type, originalText, suggestedText, explanation, context}
-      - overallScore: 0-100
-      - toneDetected: string
-      - readabilityScore: 0-100
-      - readabilityLevel: string
-      - summary: 1-sentence summary
-      - learningReview: {
-          grammarFocusAreas: Array of strings,
-          vocabularyTips: string,
-          generalFeedback: string,
-          recommendedResources: Array of strings
+      CRITICAL INSTRUCTIONS:
+      1. Detect ALL errors: spelling, punctuation (including Oxford commas), syntax, tense shifts, and style inconsistencies.
+      2. Adhere strictly to the requested tone: ${targetTone}.
+      3. If a sentence is grammatically correct but stylistically weak, provide a "CLARITY" or "ENGAGEMENT" suggestion.
+      4. DO NOT overlook subtle errors. Check every single word.
+      
+      Return a JSON object exactly matching this schema:
+      {
+        "suggestions": [{"type": "GRAMMAR"|"CLARITY"|"TONE"|"ENGAGEMENT"|"STRATEGIC", "originalText": string, "suggestedText": string, "explanation": string, "context": string}],
+        "overallScore": number (0-100),
+        "toneDetected": string,
+        "readabilityScore": number (0-100),
+        "readabilityLevel": string (e.g., "College Level", "Grade 10"),
+        "summary": string (one sentence),
+        "learningReview": {
+          "grammarFocusAreas": [string],
+          "vocabularyTips": string,
+          "generalFeedback": string,
+          "recommendedResources": [string]
         }
+      }
 
-      TEXT: "${text}"
+      TEXT TO ANALYZE:
+      "${text}"
     `;
 
     const response = await ai.models.generateContent({
@@ -54,48 +54,23 @@ export const analyzeText = async (
       contents: prompt,
       config: {
         responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            suggestions: {
-              type: Type.ARRAY,
-              items: {
-                type: Type.OBJECT,
-                properties: {
-                  type: { type: Type.STRING, enum: Object.values(SuggestionType) },
-                  originalText: { type: Type.STRING },
-                  suggestedText: { type: Type.STRING },
-                  explanation: { type: Type.STRING },
-                  context: { type: Type.STRING },
-                },
-                required: ["type", "originalText", "suggestedText", "explanation"],
-              },
-            },
-            overallScore: { type: Type.NUMBER },
-            toneDetected: { type: Type.STRING },
-            readabilityScore: { type: Type.NUMBER },
-            readabilityLevel: { type: Type.STRING },
-            summary: { type: Type.STRING },
-            learningReview: {
-              type: Type.OBJECT,
-              properties: {
-                grammarFocusAreas: { type: Type.ARRAY, items: { type: Type.STRING } },
-                vocabularyTips: { type: Type.STRING },
-                generalFeedback: { type: Type.STRING },
-                recommendedResources: { type: Type.ARRAY, items: { type: Type.STRING } },
-              },
-              required: ["grammarFocusAreas", "vocabularyTips", "generalFeedback", "recommendedResources"]
-            }
-          },
-          required: ["suggestions", "overallScore", "toneDetected", "readabilityScore", "readabilityLevel", "summary", "learningReview"],
-        },
+        // No schema defined here to give Pro more flexibility in its reasoning, 
+        // but the prompt is strict about the JSON structure.
       },
     });
 
-    if (!response.text) throw new Error("LinguistAI: Empty response from Gemini engine.");
+    if (!response.text) throw new Error("LinguistAI: Engine returned empty result.");
     
-    const result = JSON.parse(response.text) as AnalysisResult;
-    result.suggestions = result.suggestions.map((s, i) => ({ ...s, id: `sug-${Date.now()}-${i}` }));
+    // Clean JSON response (sometimes models add markdown blocks)
+    const cleanedText = response.text.replace(/```json|```/gi, '').trim();
+    const result = JSON.parse(cleanedText) as AnalysisResult;
+    
+    // Assign stable IDs for React keys
+    result.suggestions = result.suggestions.map((s, i) => ({ 
+      ...s, 
+      id: `sug-${Date.now()}-${i}` 
+    }));
+    
     return result;
   });
 };
@@ -104,7 +79,7 @@ export const checkPlagiarism = async (text: string): Promise<PlagiarismResult> =
   return await callGemini(async (ai) => {
     const response = await ai.models.generateContent({
       model: MODEL_NAME,
-      contents: `Perform a web-grounded search to check this text for matches: "${text.substring(0, 1500)}"`,
+      contents: `Search for direct matches and paraphrased plagiarism for: "${text.substring(0, 1000)}"`,
       config: { tools: [{ googleSearch: {} }] },
     });
 
@@ -114,19 +89,19 @@ export const checkPlagiarism = async (text: string): Promise<PlagiarismResult> =
       for (const chunk of groundingChunks) {
         if (chunk.web) {
           matches.push({
-            segment: "Potential match detected in external sources.",
+            segment: "External citation or match detected.",
             sourceUrl: chunk.web.uri,
             sourceTitle: chunk.web.title,
-            similarity: "Medium"
+            similarity: "Verified"
           });
         }
       }
     }
-    const score = matches.length > 0 ? Math.max(0, 100 - (matches.length * 15)) : 100;
+    const score = matches.length > 0 ? Math.max(0, 100 - (matches.length * 20)) : 100;
     return { 
       matches, 
       originalityScore: score, 
-      status: score === 100 ? 'clean' : (score < 50 ? 'detected' : 'suspicious') 
+      status: score === 100 ? 'clean' : (score < 40 ? 'detected' : 'suspicious') 
     };
   });
 };
@@ -135,7 +110,7 @@ export const generateRewrite = async (text: string, instruction: string): Promis
   return await callGemini(async (ai) => {
     const response = await ai.models.generateContent({
       model: MODEL_NAME,
-      contents: `Rewrite text according to: ${instruction}. Text: "${text}"`,
+      contents: `Act as an expert rewriter. Transform the following text based on this instruction: "${instruction}".\n\nOriginal Text: "${text}"`,
     });
     return response.text?.trim() || text;
   });
