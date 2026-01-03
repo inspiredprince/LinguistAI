@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { AnalysisResult, PlagiarismResult, Suggestion, ToneTarget } from '../types';
 import SuggestionCard from './SuggestionCard';
 import { 
@@ -13,10 +13,10 @@ import {
   CheckCheck,
   GraduationCap,
   ChevronDown,
-  ArrowRight,
-  BookOpen,
   Zap,
-  Activity
+  Activity,
+  CloudOff,
+  CloudLightning
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -32,6 +32,8 @@ interface SidebarProps {
   isAnalyzing: boolean;
   onRewrite: (instruction: string) => Promise<void>;
   promptCount: number;
+  isKeySelected: boolean;
+  onConnectKey: () => void;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ 
@@ -46,7 +48,9 @@ const Sidebar: React.FC<SidebarProps> = ({
   onCheckPlagiarism,
   isAnalyzing,
   onRewrite,
-  promptCount
+  promptCount,
+  isKeySelected,
+  onConnectKey
 }) => {
   const [activeTab, setActiveTab] = useState<'suggestions' | 'genai' | 'plagiarism'>('suggestions');
   const [customPrompt, setCustomPrompt] = useState('');
@@ -68,6 +72,22 @@ const Sidebar: React.FC<SidebarProps> = ({
 
   return (
     <div className="h-full bg-slate-50 border-l border-gray-100 flex flex-col w-full">
+      {/* API Key Connection Call-to-Action */}
+      {!isKeySelected && (
+        <div className="p-4 bg-indigo-600 text-white animate-pulse">
+          <button 
+            onClick={onConnectKey}
+            className="w-full flex items-center justify-center space-x-3 py-2 bg-white text-indigo-700 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-xl hover:bg-indigo-50 transition-colors"
+          >
+            <CloudLightning className="w-4 h-4" />
+            <span>Connect Gemini API Key</span>
+          </button>
+          <p className="text-[8px] mt-2 text-center text-indigo-100 font-bold uppercase tracking-tighter">
+            Required for Advanced Writing Analysis
+          </p>
+        </div>
+      )}
+
       <div className="flex border-b border-gray-100 bg-white">
         <button 
           onClick={() => setActiveTab('suggestions')}
@@ -98,9 +118,11 @@ const Sidebar: React.FC<SidebarProps> = ({
             <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
               <div className="flex items-center justify-between mb-4">
                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Style Strategy</span>
-                 <div className="flex items-center space-x-1.5 px-2 py-1 bg-green-50 rounded-full border border-green-100">
-                    <Activity className="w-2.5 h-2.5 text-green-500" />
-                    <span className="text-[8px] font-black text-green-700 uppercase">Live</span>
+                 <div className={`flex items-center space-x-1.5 px-2 py-1 rounded-full border ${isKeySelected ? 'bg-green-50 border-green-100' : 'bg-red-50 border-red-100'}`}>
+                    {isKeySelected ? <Activity className="w-2.5 h-2.5 text-green-500" /> : <CloudOff className="w-2.5 h-2.5 text-red-500" />}
+                    <span className={`text-[8px] font-black uppercase ${isKeySelected ? 'text-green-700' : 'text-red-700'}`}>
+                      {isKeySelected ? 'Connected' : 'Disconnected'}
+                    </span>
                  </div>
               </div>
               <select 
@@ -283,8 +305,10 @@ const Sidebar: React.FC<SidebarProps> = ({
         <div className="flex items-center justify-between mt-3">
            <p className="text-[8px] text-slate-400 font-black uppercase tracking-widest">Vercel Config Sync</p>
            <div className="flex items-center space-x-1">
-              <div className="w-1.5 h-1.5 rounded-full bg-green-500"></div>
-              <span className="text-[8px] font-black text-green-600 uppercase">Secured</span>
+              <div className={`w-1.5 h-1.5 rounded-full ${isKeySelected ? 'bg-green-500' : 'bg-red-500'}`}></div>
+              <span className={`text-[8px] font-black uppercase ${isKeySelected ? 'text-green-600' : 'text-red-600'}`}>
+                {isKeySelected ? 'Secured' : 'Auth Required'}
+              </span>
            </div>
         </div>
       </div>

@@ -1,3 +1,4 @@
+
 import { GoogleGenAI, Type } from "@google/genai";
 import { AnalysisResult, PlagiarismResult, SuggestionType, ToneTarget } from "../types";
 
@@ -5,6 +6,8 @@ import { AnalysisResult, PlagiarismResult, SuggestionType, ToneTarget } from "..
 const getAIClient = () => {
   return new GoogleGenAI({ apiKey: process.env.API_KEY as string });
 };
+
+const MODEL_NAME = "gemini-3-pro-preview"; // Use Pro for advanced writing assistance
 
 export const analyzeText = async (
   text: string, 
@@ -38,7 +41,7 @@ export const analyzeText = async (
     `;
 
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
+      model: MODEL_NAME,
       contents: prompt,
       config: {
         responseMimeType: "application/json",
@@ -96,7 +99,7 @@ export const checkPlagiarism = async (text: string): Promise<PlagiarismResult> =
   try {
     const ai = getAIClient();
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
+      model: MODEL_NAME,
       contents: `Check this text for plagiarism: "${text.substring(0, 1500)}"`,
       config: { tools: [{ googleSearch: {} }] },
     });
@@ -129,7 +132,7 @@ export const checkPlagiarism = async (text: string): Promise<PlagiarismResult> =
 export const generateRewrite = async (text: string, instruction: string): Promise<string> => {
   const ai = getAIClient();
   const response = await ai.models.generateContent({
-    model: "gemini-3-flash-preview",
+    model: MODEL_NAME,
     contents: `Rewrite this text. Instruction: ${instruction}. Text: "${text}"`,
   });
   return response.text?.trim() || text;

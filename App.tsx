@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import Navbar from './components/Navbar';
 import Editor from './components/Editor';
@@ -17,11 +18,29 @@ Also, it can detects if you copied this sentence from the internet: "To be or no
   const [toneTarget, setToneTarget] = useState<ToneTarget>(ToneTarget.PROFESSIONAL);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [promptCount, setPromptCount] = useState<number>(0);
+  const [isKeySelected, setIsKeySelected] = useState<boolean>(true);
 
   useEffect(() => {
     const saved = localStorage.getItem('linguist_prompts');
     if (saved) setPromptCount(parseInt(saved, 10));
+    
+    // Check if API key is selected on mount
+    const checkKey = async () => {
+      if (window.aistudio && typeof window.aistudio.hasSelectedApiKey === 'function') {
+        const selected = await window.aistudio.hasSelectedApiKey();
+        setIsKeySelected(selected);
+      }
+    };
+    checkKey();
   }, []);
+
+  const handleConnectKey = async () => {
+    if (window.aistudio && typeof window.aistudio.openSelectKey === 'function') {
+      await window.aistudio.openSelectKey();
+      setIsKeySelected(true);
+      // After selection, we assume success and proceed
+    }
+  };
 
   const incrementPrompts = () => {
     setPromptCount(prev => {
@@ -37,14 +56,19 @@ Also, it can detects if you copied this sentence from the internet: "To be or no
     try {
       const result = await analyzeText(text, toneTarget);
       setAnalysis(result);
+      setIsKeySelected(true);
       incrementPrompts();
     } catch (error: any) {
       console.error("Analysis Failed:", error);
-      const isAuthError = error.message?.toLowerCase().includes("key") || error.message?.toLowerCase().includes("api");
-      const errorMsg = isAuthError 
-        ? "AI Connection Issue: The API key is missing or invalid. If you just added it to Vercel, please wait a moment for the deployment to finish and refresh."
-        : "Analysis Failed: " + error.message;
-      alert(errorMsg);
+      const errorMsg = error.message?.toLowerCase() || "";
+      const isAuthError = errorMsg.includes("key") || errorMsg.includes("api") || errorMsg.includes("not found") || errorMsg.includes("403") || errorMsg.includes("401");
+      
+      if (isAuthError) {
+        setIsKeySelected(false);
+        alert("AI Authentication Failed: Please click the 'Connect AI' button in the sidebar to select a valid API key from a paid GCP project.");
+      } else {
+        alert("Analysis Failed: " + error.message);
+      }
     } finally {
       setIsAnalyzing(false);
     }
@@ -129,7 +153,7 @@ Also, it can detects if you copied this sentence from the internet: "To be or no
       setAnalysis(null);
       incrementPrompts();
     } catch (e) {
-      alert("AI Rewrite failed. This is usually due to an API key or connectivity issue.");
+      alert("AI Rewrite failed. Please ensure your Gemini API key is connected.");
     }
   };
 
@@ -159,6 +183,8 @@ Also, it can detects if you copied this sentence from the internet: "To be or no
             isAnalyzing={isAnalyzing}
             onRewrite={handleRewrite}
             promptCount={promptCount}
+            isKeySelected={isKeySelected}
+            onConnectKey={handleConnectKey}
           />
         </div>
       </main>
