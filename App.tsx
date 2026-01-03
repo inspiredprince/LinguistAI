@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+
+import React, { useState, useEffect } from 'react';
 import Navbar from './components/Navbar';
 import Editor from './components/Editor';
 import Sidebar from './components/Sidebar';
@@ -16,6 +17,23 @@ Also, it can detects if you copied this sentence from the internet: "To be or no
   const [plagiarism, setPlagiarism] = useState<PlagiarismResult | null>(null);
   const [toneTarget, setToneTarget] = useState<ToneTarget>(ToneTarget.PROFESSIONAL);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  
+  // Real prompt counter state
+  const [promptCount, setPromptCount] = useState<number>(0);
+
+  // Load prompt count from local storage for persistence
+  useEffect(() => {
+    const saved = localStorage.getItem('linguist_prompts');
+    if (saved) setPromptCount(parseInt(saved, 10));
+  }, []);
+
+  const incrementPrompts = () => {
+    setPromptCount(prev => {
+      const next = prev + 1;
+      localStorage.setItem('linguist_prompts', next.toString());
+      return next;
+    });
+  };
 
   const handleAnalyze = async () => {
     if (!text.trim()) return;
@@ -23,9 +41,9 @@ Also, it can detects if you copied this sentence from the internet: "To be or no
     try {
       const result = await analyzeText(text, toneTarget);
       setAnalysis(result);
+      incrementPrompts();
     } catch (error: any) {
       console.error("Analysis Failed:", error);
-      // Detailed error message to help the user identify the API Key problem
       const errorMsg = error.message.includes("API_KEY") 
         ? "API Key Error: " + error.message 
         : "Failed to analyze text: " + error.message;
@@ -41,6 +59,7 @@ Also, it can detects if you copied this sentence from the internet: "To be or no
     try {
       const result = await checkPlagiarism(text);
       setPlagiarism(result);
+      incrementPrompts();
     } catch (error) {
       console.error(error);
     }
@@ -114,19 +133,25 @@ Also, it can detects if you copied this sentence from the internet: "To be or no
       const rewrited = await generateRewrite(text, instruction);
       setText(rewrited);
       setAnalysis(null);
+      incrementPrompts();
     } catch (e) {
       alert("Rewrite failed. Please check your API key.");
     }
   };
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50 overflow-hidden">
+    <div className="flex flex-col h-screen bg-white overflow-hidden text-slate-900">
       <Navbar />
       <main className="flex-1 flex overflow-hidden">
-        <div className="flex-1 p-6 overflow-hidden flex flex-col max-w-5xl mx-auto w-full">
-          <Editor text={text} setText={setText} isAnalyzing={isAnalyzing} />
+        <div className="flex-1 p-10 overflow-hidden flex flex-col max-w-7xl mx-auto w-full">
+          <Editor 
+            text={text} 
+            setText={setText} 
+            isAnalyzing={isAnalyzing} 
+            analysis={analysis} 
+          />
         </div>
-        <div className="w-96 bg-white border-l border-gray-200 shadow-xl z-10 flex flex-col">
+        <div className="w-[480px] bg-white border-l border-gray-100 shadow-2xl z-10 flex flex-col">
           <Sidebar
             analysis={analysis}
             plagiarism={plagiarism}
@@ -139,6 +164,7 @@ Also, it can detects if you copied this sentence from the internet: "To be or no
             onCheckPlagiarism={handleCheckPlagiarism}
             isAnalyzing={isAnalyzing}
             onRewrite={handleRewrite}
+            promptCount={promptCount}
           />
         </div>
       </main>
