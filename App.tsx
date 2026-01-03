@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import Navbar from './components/Navbar';
 import Editor from './components/Editor';
 import Sidebar from './components/Sidebar';
@@ -23,9 +23,13 @@ Also, it can detects if you copied this sentence from the internet: "To be or no
     try {
       const result = await analyzeText(text, toneTarget);
       setAnalysis(result);
-    } catch (error) {
-      console.error(error);
-      alert("Failed to analyze text. Please ensure your API key is configured correctly.");
+    } catch (error: any) {
+      console.error("Analysis Failed:", error);
+      // Detailed error message to help the user identify the API Key problem
+      const errorMsg = error.message.includes("API_KEY") 
+        ? "API Key Error: " + error.message 
+        : "Failed to analyze text: " + error.message;
+      alert(errorMsg);
     } finally {
       setIsAnalyzing(false);
     }
@@ -39,62 +43,34 @@ Also, it can detects if you copied this sentence from the internet: "To be or no
       setPlagiarism(result);
     } catch (error) {
       console.error(error);
-      alert("Plagiarism check failed.");
     }
   };
 
   const applyCorrection = (currentText: string, suggestion: Suggestion): string => {
     const { originalText, suggestedText, context } = suggestion;
-
     const createFlexibleRegex = (str: string) => {
       const escaped = str.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       return escaped.replace(/\s+/g, '\\s+');
     };
-
     const flexibleOriginal = createFlexibleRegex(originalText);
     
-    // Strategy 1: Context-aware replacement
     if (context) {
       const flexibleContext = createFlexibleRegex(context);
       const regex = new RegExp(`(${flexibleContext})(\\s+)(${flexibleOriginal})`, 'g');
-      if (regex.test(currentText)) {
-        return currentText.replace(regex, `$1$2${suggestedText}`);
-      }
+      if (regex.test(currentText)) return currentText.replace(regex, `$1$2${suggestedText}`);
     }
     
-    // Strategy 2: Flexible Original replacement
     const regexNoContext = new RegExp(flexibleOriginal, 'g');
-    if (regexNoContext.test(currentText)) {
-       return currentText.replace(regexNoContext, suggestedText);
-    }
+    if (regexNoContext.test(currentText)) return currentText.replace(regexNoContext, suggestedText);
 
-    // Strategy 3: Fuzzy Match Fallback (Important for Structure/Formatting)
-    // Ignores non-alphanumeric characters to find matches that differ slightly in punctuation/newlines
-    const fuzzyOriginal = originalText.replace(/[^a-zA-Z0-9]/g, '');
-    if (fuzzyOriginal.length > 10) { // Only do for longer snippets to avoid false positives
-      const words = originalText.split(/\s+/).filter(w => w.length > 2);
-      if (words.length > 0) {
-        // Create a regex that allows anything between words
-        const fuzzyPattern = words.map(w => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('.*?');
-        const fuzzyRegex = new RegExp(fuzzyPattern, 's'); // 's' flag for dotall
-        if (fuzzyRegex.test(currentText)) {
-          return currentText.replace(fuzzyRegex, suggestedText);
-        }
-      }
-    }
-
-    // Strategy 4: Literal replacement (Fallback)
-    if (currentText.includes(originalText)) {
-      return currentText.replace(originalText, suggestedText);
-    }
-
+    if (currentText.includes(originalText)) return currentText.replace(originalText, suggestedText);
     return currentText;
   };
 
   const handleApplySuggestion = (suggestion: Suggestion) => {
     const newText = applyCorrection(text, suggestion);
     if (newText === text) {
-      alert("Could not locate the exact text to replace. It may have been modified already.");
+      alert("Could not locate the text to replace. It may have been modified already.");
       return;
     }
     setText(newText);
@@ -139,7 +115,7 @@ Also, it can detects if you copied this sentence from the internet: "To be or no
       setText(rewrited);
       setAnalysis(null);
     } catch (e) {
-      alert("Rewrite failed.");
+      alert("Rewrite failed. Please check your API key.");
     }
   };
 

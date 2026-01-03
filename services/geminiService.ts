@@ -3,8 +3,8 @@ import { AnalysisResult, PlagiarismResult, SuggestionType, ToneTarget } from "..
 
 const getAIClient = () => {
   const apiKey = process.env.API_KEY;
-  if (!apiKey) {
-    throw new Error("API Key not found in environment variables");
+  if (!apiKey || apiKey === "undefined" || apiKey === "") {
+    throw new Error("MISSING_API_KEY: Please add API_KEY to your Vercel Environment Variables.");
   }
   return new GoogleGenAI({ apiKey });
 };
@@ -13,40 +13,33 @@ export const analyzeText = async (
   text: string, 
   targetTone: ToneTarget
 ): Promise<AnalysisResult> => {
-  const ai = getAIClient();
-  
-  const toneInstruction = targetTone === ToneTarget.JOURNALISTIC
-    ? "JOURNALISTIC: Adhere strictly to AP Style. Focus on the 'Inverted Pyramid' (most important info first), use active voice, eliminate all editorializing/opinions, and ensure concise, punchy sentences."
-    : targetTone;
-
-  const prompt = `
-    Analyze this text for grammar, clarity, and tone (Target: ${toneInstruction}).
-    
-    CRITICAL INSTRUCTIONS:
-    1. Identify exact snippets ('originalText') for correction.
-    2. Provide a 'suggestedText' that improves the snippet.
-    3. Categorize suggestions into: GRAMMAR, CLARITY, TONE, ENGAGEMENT, STRATEGIC, or FORMATTING.
-    4. If Journalistic, flag any use of passive voice or flowery adjectives as CLARITY or TONE issues.
-    
-    Return a JSON object:
-    - suggestions: Array of {type, originalText, suggestedText, explanation, context}
-    - overallScore: 0-100
-    - toneDetected: string
-    - readabilityScore: 0-100
-    - readabilityLevel: string
-    - summary: 1-sentence summary
-    - learningReview: {
-        grammarFocusAreas: Array of specific patterns to improve,
-        vocabularyTips: advice on word choice,
-        generalFeedback: structural and logic advice,
-        recommendedResources: Array of specific books/links
-      }
-
-    TEXT:
-    "${text}"
-  `;
-
   try {
+    const ai = getAIClient();
+    
+    const toneInstruction = targetTone === ToneTarget.JOURNALISTIC
+      ? "JOURNALISTIC: Adhere strictly to AP Style. Focus on the 'Inverted Pyramid', use active voice, and eliminate editorializing."
+      : targetTone;
+
+    const prompt = `
+      Analyze this text for grammar, clarity, and tone (Target: ${toneInstruction}).
+      
+      Return a JSON object:
+      - suggestions: Array of {type, originalText, suggestedText, explanation, context}
+      - overallScore: 0-100
+      - toneDetected: string
+      - readabilityScore: 0-100
+      - readabilityLevel: string
+      - summary: 1-sentence summary
+      - learningReview: {
+          grammarFocusAreas: Array of strings,
+          vocabularyTips: string,
+          generalFeedback: string,
+          recommendedResources: Array of strings
+        }
+
+      TEXT: "${text}"
+    `;
+
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
       contents: prompt,
@@ -90,22 +83,22 @@ export const analyzeText = async (
       },
     });
 
-    if (!response.text) throw new Error("Empty AI response");
+    if (!response.text) throw new Error("API returned an empty response.");
     
     const result = JSON.parse(response.text) as AnalysisResult;
-    // Ensure IDs are present
     result.suggestions = result.suggestions.map((s, i) => ({ ...s, id: `sug-${Date.now()}-${i}` }));
     return result;
 
-  } catch (error) {
-    console.error("Analysis Error:", error);
-    throw error;
+  } catch (error: any) {
+    console.error("Gemini Analysis Error:", error);
+    // Propagate the specific error message to the UI
+    throw new Error(error.message || "An unexpected error occurred during analysis.");
   }
 };
 
 export const checkPlagiarism = async (text: string): Promise<PlagiarismResult> => {
-  const ai = getAIClient();
   try {
+    const ai = getAIClient();
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
       contents: `Check this text for plagiarism: "${text.substring(0, 1500)}"`,
@@ -118,7 +111,7 @@ export const checkPlagiarism = async (text: string): Promise<PlagiarismResult> =
       for (const chunk of groundingChunks) {
         if (chunk.web) {
           matches.push({
-            segment: "Potential match detected in external source.",
+            segment: "Potential match found in external source.",
             sourceUrl: chunk.web.uri,
             sourceTitle: chunk.web.title,
             similarity: "Medium"
