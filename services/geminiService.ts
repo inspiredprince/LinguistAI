@@ -1,12 +1,9 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { AnalysisResult, PlagiarismResult, SuggestionType, ToneTarget } from "../types";
 
+// Always initialize fresh to ensure we pick up the latest injected API_KEY
 const getAIClient = () => {
-  const apiKey = process.env.API_KEY;
-  if (!apiKey || apiKey === "undefined" || apiKey === "") {
-    throw new Error("MISSING_API_KEY: Please add API_KEY to your Vercel Environment Variables.");
-  }
-  return new GoogleGenAI({ apiKey });
+  return new GoogleGenAI({ apiKey: process.env.API_KEY as string });
 };
 
 export const analyzeText = async (
@@ -91,8 +88,7 @@ export const analyzeText = async (
 
   } catch (error: any) {
     console.error("Gemini Analysis Error:", error);
-    // Propagate the specific error message to the UI
-    throw new Error(error.message || "An unexpected error occurred during analysis.");
+    throw error;
   }
 };
 

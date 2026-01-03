@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import Navbar from './components/Navbar';
 import Editor from './components/Editor';
@@ -17,11 +16,8 @@ Also, it can detects if you copied this sentence from the internet: "To be or no
   const [plagiarism, setPlagiarism] = useState<PlagiarismResult | null>(null);
   const [toneTarget, setToneTarget] = useState<ToneTarget>(ToneTarget.PROFESSIONAL);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  
-  // Real prompt counter state
   const [promptCount, setPromptCount] = useState<number>(0);
 
-  // Load prompt count from local storage for persistence
   useEffect(() => {
     const saved = localStorage.getItem('linguist_prompts');
     if (saved) setPromptCount(parseInt(saved, 10));
@@ -44,9 +40,10 @@ Also, it can detects if you copied this sentence from the internet: "To be or no
       incrementPrompts();
     } catch (error: any) {
       console.error("Analysis Failed:", error);
-      const errorMsg = error.message.includes("API_KEY") 
-        ? "API Key Error: " + error.message 
-        : "Failed to analyze text: " + error.message;
+      const isAuthError = error.message?.toLowerCase().includes("key") || error.message?.toLowerCase().includes("api");
+      const errorMsg = isAuthError 
+        ? "AI Connection Issue: The API key is missing or invalid. If you just added it to Vercel, please wait a moment for the deployment to finish and refresh."
+        : "Analysis Failed: " + error.message;
       alert(errorMsg);
     } finally {
       setIsAnalyzing(false);
@@ -88,10 +85,7 @@ Also, it can detects if you copied this sentence from the internet: "To be or no
 
   const handleApplySuggestion = (suggestion: Suggestion) => {
     const newText = applyCorrection(text, suggestion);
-    if (newText === text) {
-      alert("Could not locate the text to replace. It may have been modified already.");
-      return;
-    }
+    if (newText === text) return;
     setText(newText);
     if (analysis) {
       setAnalysis({
@@ -135,7 +129,7 @@ Also, it can detects if you copied this sentence from the internet: "To be or no
       setAnalysis(null);
       incrementPrompts();
     } catch (e) {
-      alert("Rewrite failed. Please check your API key.");
+      alert("AI Rewrite failed. This is usually due to an API key or connectivity issue.");
     }
   };
 
