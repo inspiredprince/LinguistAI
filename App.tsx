@@ -18,20 +18,21 @@ Also, it can detects if you copied this sentence from the internet: "To be or no
   const [toneTarget, setToneTarget] = useState<ToneTarget>(ToneTarget.PROFESSIONAL);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [promptCount, setPromptCount] = useState<number>(0);
-  const [isKeySelected, setIsKeySelected] = useState<boolean>(true); // Default to true to prevent blocking if AI key is pre-injected
+  // Default to true so users aren't blocked if they already have an environment key
+  const [isKeySelected, setIsKeySelected] = useState<boolean>(true); 
 
-  // Sync key selection state
   const syncKeyStatus = useCallback(async () => {
     try {
-      if (window.aistudio && typeof window.aistudio.hasSelectedApiKey === 'function') {
-        const selected = await window.aistudio.hasSelectedApiKey();
+      const win = window as any;
+      if (win.aistudio && typeof win.aistudio.hasSelectedApiKey === 'function') {
+        const selected = await win.aistudio.hasSelectedApiKey();
         setIsKeySelected(selected);
         return selected;
       }
     } catch (e) {
-      console.warn("Could not check key status", e);
+      console.warn("Key status check bypassed:", e);
     }
-    return true; // Assume true if we can't check
+    return true;
   }, []);
 
   useEffect(() => {
@@ -40,18 +41,23 @@ Also, it can detects if you copied this sentence from the internet: "To be or no
     syncKeyStatus();
   }, [syncKeyStatus]);
 
-  const handleConnectKey = async () => {
+  const handleConnectKey = () => {
+    console.log("Attempting to connect key...");
+    // CRITICAL: Set state immediately to unlock the UI and mitigate race conditions/hangs
+    setIsKeySelected(true);
+
     try {
-      if (window.aistudio && typeof window.aistudio.openSelectKey === 'function') {
-        await window.aistudio.openSelectKey();
+      const win = window as any;
+      if (win.aistudio && typeof win.aistudio.openSelectKey === 'function') {
+        // Fire and forget - do not await here as it might hang the UI until dialog closes
+        win.aistudio.openSelectKey().catch((err: any) => {
+          console.error("Delayed openSelectKey error:", err);
+        });
       } else {
-        console.log("window.aistudio.openSelectKey not found, bypassing overlay.");
+        console.warn("aistudio.openSelectKey not found in current context.");
       }
     } catch (e) {
-      console.error("Error opening key selection:", e);
-    } finally {
-      // CRITICAL: Mitigate race conditions by assuming success after trigger
-      setIsKeySelected(true);
+      console.error("Critical error in key selection trigger:", e);
     }
   };
 
@@ -75,10 +81,10 @@ Also, it can detects if you copied this sentence from the internet: "To be or no
       console.error("Analysis Failed:", error);
       const errorMsg = error.message?.toLowerCase() || "";
       
-      // Detailed error handling for Pro models
-      if (errorMsg.includes("not found") || errorMsg.includes("key") || errorMsg.includes("permission") || errorMsg.includes("403") || errorMsg.includes("401")) {
+      // Check for common auth/model errors
+      if (errorMsg.includes("not found") || errorMsg.includes("key") || errorMsg.includes("403") || errorMsg.includes("401")) {
         setIsKeySelected(false);
-        alert("Authentication Error: Your Gemini session has expired or the key is invalid. Please reconnect using the 'Connect Cloud Key' button.");
+        alert("Authentication Error: Your Gemini session is invalid or the 'gemini-3-pro-preview' model is not enabled for your key. \n\nIMPORTANT: This model requires a PAID API key from a project with billing enabled. Please reconnect using the 'Connect Cloud Key' button.");
       } else {
         alert("Analysis Error: " + error.message);
       }
@@ -95,7 +101,6 @@ Also, it can detects if you copied this sentence from the internet: "To be or no
       setPlagiarism(result);
       incrementPrompts();
     } catch (error: any) {
-      console.error(error);
       const errorMsg = error.message?.toLowerCase() || "";
       if (errorMsg.includes("key") || errorMsg.includes("403")) {
         setIsKeySelected(false);
@@ -170,12 +175,11 @@ Also, it can detects if you copied this sentence from the internet: "To be or no
       setAnalysis(null);
       incrementPrompts();
     } catch (e: any) {
-      console.error(e);
       const errorMsg = e.message?.toLowerCase() || "";
       if (errorMsg.includes("key") || errorMsg.includes("403")) {
         setIsKeySelected(false);
       }
-      alert("AI Rewrite failed. Please check your Gemini connection.");
+      alert("AI Rewrite failed. Please ensure you are using a paid Gemini API key.");
     }
   };
 

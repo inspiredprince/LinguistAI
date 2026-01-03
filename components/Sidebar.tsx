@@ -56,7 +56,6 @@ const Sidebar: React.FC<SidebarProps> = ({
   const [activeTab, setActiveTab] = useState<'suggestions' | 'genai' | 'plagiarism'>('suggestions');
   const [customPrompt, setCustomPrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
-  const [isReviewOpen, setIsReviewOpen] = useState(true);
 
   const handleRewrite = async () => {
     if (!customPrompt.trim()) return;
@@ -75,22 +74,22 @@ const Sidebar: React.FC<SidebarProps> = ({
     <div className="h-full bg-slate-50 border-l border-gray-100 flex flex-col w-full relative">
       {/* Dynamic API Connection Overlay */}
       {!isKeySelected && (
-        <div className="absolute inset-0 z-[60] bg-white/95 backdrop-blur-sm flex flex-col items-center justify-center p-8 text-center transition-all">
-          <div className="bg-white p-10 rounded-[3rem] shadow-[0_32px_64px_-12px_rgba(0,0,0,0.1)] border border-indigo-50 max-w-sm animate-in zoom-in duration-500">
+        <div className="absolute inset-0 z-[60] bg-white/95 backdrop-blur-sm flex flex-col items-center justify-center p-8 text-center animate-in fade-in duration-300">
+          <div className="bg-white p-10 rounded-[3rem] shadow-[0_32px_64px_-12px_rgba(0,0,0,0.15)] border border-indigo-50 max-w-sm animate-in zoom-in duration-500">
             <div className="w-20 h-20 bg-indigo-600 rounded-[2rem] flex items-center justify-center mx-auto mb-8 shadow-2xl shadow-indigo-200">
               <Lock className="w-10 h-10 text-white" />
             </div>
-            <h3 className="text-xl font-black text-slate-900 mb-3 uppercase tracking-tight">Access Locked</h3>
+            <h3 className="text-xl font-black text-slate-900 mb-3 uppercase tracking-tight">AI Access Restricted</h3>
             <p className="text-sm text-slate-500 mb-10 leading-relaxed font-medium">
-              Connect your Gemini API Key to unlock advanced grammar analysis and your 1,000 monthly prompt quota.
+              A valid Gemini API Key is required. Please ensure you select a key from a <strong>paid GCP project</strong> for the best experience.
             </p>
             
             <button 
-              onClick={(e) => {
-                e.stopPropagation();
+              onClick={() => {
+                console.log("Connect button clicked");
                 onConnectKey();
               }}
-              className="w-full flex items-center justify-center space-x-3 py-5 bg-indigo-600 text-white rounded-3xl font-black text-xs uppercase tracking-[0.2em] shadow-2xl shadow-indigo-100 hover:bg-indigo-700 hover:scale-[1.02] active:scale-95 transition-all mb-6 cursor-pointer"
+              className="w-full flex items-center justify-center space-x-3 py-5 bg-indigo-600 text-white rounded-3xl font-black text-xs uppercase tracking-[0.2em] shadow-2xl shadow-indigo-100 hover:bg-indigo-700 hover:scale-[1.02] active:scale-95 transition-all mb-6 cursor-pointer relative z-[70] pointer-events-auto"
             >
               <CloudLightning className="w-5 h-5" />
               <span>Connect Cloud Key</span>
@@ -100,9 +99,9 @@ const Sidebar: React.FC<SidebarProps> = ({
               href="https://ai.google.dev/gemini-api/docs/billing" 
               target="_blank" 
               rel="noopener noreferrer"
-              className="flex items-center justify-center space-x-2 text-[10px] font-black text-indigo-400 uppercase tracking-widest hover:text-indigo-600 transition-colors"
+              className="flex items-center justify-center space-x-2 text-[10px] font-black text-indigo-400 uppercase tracking-widest hover:text-indigo-600 transition-colors pointer-events-auto"
             >
-              <span>View Requirements</span>
+              <span>View Billing Requirements</span>
               <ExternalLink className="w-3 h-3" />
             </a>
           </div>
