@@ -7,17 +7,17 @@ import {
   Search, 
   Settings2, 
   ShieldCheck, 
-  ChevronRight,
   PieChart,
   Sparkles,
   CheckCheck,
-  ChevronDown,
   Zap,
   Activity,
   CloudOff,
   CloudLightning,
   ExternalLink,
-  Lock
+  Lock,
+  AlertCircle,
+  Terminal
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -57,6 +57,9 @@ const Sidebar: React.FC<SidebarProps> = ({
   const [customPrompt, setCustomPrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
 
+  // Check if we are inside AI Studio or in a standalone environment
+  const isBridgeAvailable = !!(window as any).aistudio;
+
   const handleRewrite = async () => {
     if (!customPrompt.trim()) return;
     setIsGenerating(true);
@@ -74,34 +77,51 @@ const Sidebar: React.FC<SidebarProps> = ({
     <div className="h-full bg-slate-50 border-l border-gray-100 flex flex-col w-full relative">
       {/* Dynamic API Connection Overlay */}
       {!isKeySelected && (
-        <div className="absolute inset-0 z-[60] bg-white/95 backdrop-blur-sm flex flex-col items-center justify-center p-8 text-center animate-in fade-in duration-300">
+        <div className="absolute inset-0 z-[60] bg-white/95 backdrop-blur-md flex flex-col items-center justify-center p-8 text-center animate-in fade-in duration-300">
           <div className="bg-white p-10 rounded-[3rem] shadow-[0_32px_64px_-12px_rgba(0,0,0,0.15)] border border-indigo-50 max-w-sm animate-in zoom-in duration-500">
             <div className="w-20 h-20 bg-indigo-600 rounded-[2rem] flex items-center justify-center mx-auto mb-8 shadow-2xl shadow-indigo-200">
               <Lock className="w-10 h-10 text-white" />
             </div>
-            <h3 className="text-xl font-black text-slate-900 mb-3 uppercase tracking-tight">AI Access Restricted</h3>
-            <p className="text-sm text-slate-500 mb-10 leading-relaxed font-medium">
-              A valid Gemini API Key is required. Please ensure you select a key from a <strong>paid GCP project</strong> for the best experience.
-            </p>
+            <h3 className="text-xl font-black text-slate-900 mb-3 uppercase tracking-tight">Access Restricted</h3>
             
-            <button 
-              onClick={() => {
-                console.log("Connect button clicked");
-                onConnectKey();
-              }}
-              className="w-full flex items-center justify-center space-x-3 py-5 bg-indigo-600 text-white rounded-3xl font-black text-xs uppercase tracking-[0.2em] shadow-2xl shadow-indigo-100 hover:bg-indigo-700 hover:scale-[1.02] active:scale-95 transition-all mb-6 cursor-pointer relative z-[70] pointer-events-auto"
-            >
-              <CloudLightning className="w-5 h-5" />
-              <span>Connect Cloud Key</span>
-            </button>
+            {!isBridgeAvailable ? (
+              <div className="space-y-4">
+                <div className="p-4 bg-amber-50 rounded-2xl border border-amber-100 flex items-start space-x-3 text-left">
+                  <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                  <p className="text-[11px] text-amber-800 font-medium leading-relaxed">
+                    <strong>Environment Mismatch:</strong> This app is running in a standalone browser. To use automatic key selection, run this in the <strong>Google AI Studio Preview</strong>.
+                  </p>
+                </div>
+                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 flex items-start space-x-3 text-left">
+                  <Terminal className="w-5 h-5 text-slate-600 flex-shrink-0 mt-0.5" />
+                  <p className="text-[11px] text-slate-600 font-medium leading-relaxed">
+                    <strong>Manual Setup:</strong> If deployed, ensure the <code>API_KEY</code> environment variable is configured in your hosting dashboard.
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm text-slate-500 mb-10 leading-relaxed font-medium">
+                Please click below to select a Gemini API key from a <strong>paid GCP project</strong>.
+              </p>
+            )}
+            
+            {isBridgeAvailable && (
+              <button 
+                onClick={onConnectKey}
+                className="w-full flex items-center justify-center space-x-3 py-5 bg-indigo-600 text-white rounded-3xl font-black text-xs uppercase tracking-[0.2em] shadow-2xl shadow-indigo-100 hover:bg-indigo-700 hover:scale-[1.02] active:scale-95 transition-all mb-6 cursor-pointer relative z-[70] pointer-events-auto"
+              >
+                <CloudLightning className="w-5 h-5" />
+                <span>Connect Cloud Key</span>
+              </button>
+            )}
             
             <a 
               href="https://ai.google.dev/gemini-api/docs/billing" 
               target="_blank" 
               rel="noopener noreferrer"
-              className="flex items-center justify-center space-x-2 text-[10px] font-black text-indigo-400 uppercase tracking-widest hover:text-indigo-600 transition-colors pointer-events-auto"
+              className="flex items-center justify-center space-x-2 text-[10px] font-black text-indigo-400 uppercase tracking-widest hover:text-indigo-600 transition-colors pointer-events-auto mt-4"
             >
-              <span>View Billing Requirements</span>
+              <span>View Requirements</span>
               <ExternalLink className="w-3 h-3" />
             </a>
           </div>
@@ -141,7 +161,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                  <div className={`flex items-center space-x-1.5 px-2 py-1 rounded-full border ${isKeySelected ? 'bg-green-50 border-green-100' : 'bg-red-50 border-red-100'}`}>
                     {isKeySelected ? <Activity className="w-2.5 h-2.5 text-green-500" /> : <CloudOff className="w-2.5 h-2.5 text-red-500" />}
                     <span className={`text-[8px] font-black uppercase ${isKeySelected ? 'text-green-700' : 'text-red-700'}`}>
-                      {isKeySelected ? 'Connected' : 'Auth Needed'}
+                      {isKeySelected ? 'Connected' : 'Disconnected'}
                     </span>
                  </div>
               </div>
@@ -157,9 +177,9 @@ const Sidebar: React.FC<SidebarProps> = ({
               
               <button 
                 onClick={onAnalyze}
-                disabled={isAnalyzing}
+                disabled={isAnalyzing || !isKeySelected}
                 className={`w-full py-4 rounded-2xl font-black text-xs uppercase tracking-[0.15em] text-white shadow-xl shadow-indigo-100 transition-all active:scale-[0.98] ${
-                  isAnalyzing ? 'bg-indigo-300 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700'
+                  isAnalyzing || !isKeySelected ? 'bg-indigo-300 cursor-not-allowed shadow-none' : 'bg-indigo-600 hover:bg-indigo-700'
                 }`}
               >
                 {isAnalyzing ? 'Processing AI...' : 'Run Diagnostics'}
@@ -232,9 +252,9 @@ const Sidebar: React.FC<SidebarProps> = ({
               />
               <button
                 onClick={handleRewrite}
-                disabled={isGenerating || !customPrompt.trim()}
+                disabled={isGenerating || !customPrompt.trim() || !isKeySelected}
                 className={`w-full py-5 rounded-2xl font-black text-[10px] uppercase tracking-[0.3em] shadow-2xl transition-all active:scale-[0.98] ${
-                  isGenerating ? 'bg-indigo-400' : 'bg-white text-indigo-900 hover:bg-indigo-50 shadow-indigo-950/50'
+                  isGenerating || !isKeySelected ? 'bg-indigo-400 opacity-50 shadow-none' : 'bg-white text-indigo-900 hover:bg-indigo-50 shadow-indigo-950/50'
                 }`}
               >
                 {isGenerating ? 'Synthesizing...' : 'Apply Evolution'}
@@ -251,7 +271,10 @@ const Sidebar: React.FC<SidebarProps> = ({
                 <p className="text-xs text-slate-500 font-medium mb-8 leading-relaxed italic">Confirm your original thought against a global index of 100 trillion pages.</p>
                 <button 
                   onClick={onCheckPlagiarism}
-                  className="w-full py-5 bg-slate-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.3em] hover:bg-black transition-all shadow-xl shadow-slate-200 flex items-center justify-center space-x-4"
+                  disabled={!isKeySelected}
+                  className={`w-full py-5 text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.3em] transition-all shadow-xl shadow-slate-200 flex items-center justify-center space-x-4 ${
+                    !isKeySelected ? 'bg-slate-300 cursor-not-allowed shadow-none' : 'bg-slate-900 hover:bg-black'
+                  }`}
                 >
                   <Search className="w-4 h-4" />
                   <span>Start Global Check</span>
@@ -287,11 +310,11 @@ const Sidebar: React.FC<SidebarProps> = ({
           ></div>
         </div>
         <div className="flex items-center justify-between mt-3">
-           <p className="text-[8px] text-slate-400 font-black uppercase tracking-widest">Vercel Config Sync</p>
+           <p className="text-[8px] text-slate-400 font-black uppercase tracking-widest">Cloud Environment</p>
            <div className="flex items-center space-x-1">
-              <div className={`w-1.5 h-1.5 rounded-full ${isKeySelected ? 'bg-green-500' : 'bg-red-500'}`}></div>
+              <div className={`w-1.5 h-1.5 rounded-full ${isKeySelected ? 'bg-green-500 shadow-[0_0_5px_rgba(34,197,94,1)]' : 'bg-red-500'}`}></div>
               <span className={`text-[8px] font-black uppercase ${isKeySelected ? 'text-green-600' : 'text-red-600'}`}>
-                {isKeySelected ? 'Secured' : 'Auth Required'}
+                {isKeySelected ? 'Authenticated' : 'Offline'}
               </span>
            </div>
         </div>

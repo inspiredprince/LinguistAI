@@ -5,14 +5,18 @@ import { AnalysisResult, PlagiarismResult, SuggestionType, ToneTarget } from "..
 const MODEL_NAME = "gemini-3-flash-preview"; 
 
 /**
- * Utility to execute a Gemini call with immediate instance creation.
- * This ensures we always use the latest environment-injected API_KEY.
+ * Utility to execute a Gemini call with safety checks.
+ * Prevents the SDK from throwing a "Key must be set" error by validating first.
  */
 const callGemini = async (fn: (ai: GoogleGenAI) => Promise<any>) => {
   const apiKey = process.env.API_KEY;
-  // If we have no key at all, we'll let the SDK throw its standard browser error
-  // which is exactly what the user is seeing. We catch it in the UI layer.
-  const ai = new GoogleGenAI({ apiKey: apiKey as string });
+  
+  if (!apiKey || apiKey === "undefined" || apiKey.trim() === "") {
+    throw new Error("CONNECTION_REQUIRED: No API Key found. Please ensure you are running in AI Studio Preview or have set the API_KEY environment variable.");
+  }
+
+  // Only instantiate once we know we have a key string
+  const ai = new GoogleGenAI({ apiKey });
   return await fn(ai);
 };
 
@@ -88,7 +92,7 @@ export const analyzeText = async (
       },
     });
 
-    if (!response.text) throw new Error("LinguistAI: Empty response from engine.");
+    if (!response.text) throw new Error("LinguistAI: Empty response from Gemini engine.");
     
     const result = JSON.parse(response.text) as AnalysisResult;
     result.suggestions = result.suggestions.map((s, i) => ({ ...s, id: `sug-${Date.now()}-${i}` }));
@@ -100,7 +104,7 @@ export const checkPlagiarism = async (text: string): Promise<PlagiarismResult> =
   return await callGemini(async (ai) => {
     const response = await ai.models.generateContent({
       model: MODEL_NAME,
-      contents: `Check this text for potential plagiarism or common matches online: "${text.substring(0, 1500)}"`,
+      contents: `Perform a web-grounded search to check this text for matches: "${text.substring(0, 1500)}"`,
       config: { tools: [{ googleSearch: {} }] },
     });
 
@@ -110,7 +114,7 @@ export const checkPlagiarism = async (text: string): Promise<PlagiarismResult> =
       for (const chunk of groundingChunks) {
         if (chunk.web) {
           matches.push({
-            segment: "Potential match detected.",
+            segment: "Potential match detected in external sources.",
             sourceUrl: chunk.web.uri,
             sourceTitle: chunk.web.title,
             similarity: "Medium"
@@ -131,7 +135,7 @@ export const generateRewrite = async (text: string, instruction: string): Promis
   return await callGemini(async (ai) => {
     const response = await ai.models.generateContent({
       model: MODEL_NAME,
-      contents: `Perform the following rewrite instruction on the text. Instruction: ${instruction}. Text: "${text}"`,
+      contents: `Rewrite text according to: ${instruction}. Text: "${text}"`,
     });
     return response.text?.trim() || text;
   });
