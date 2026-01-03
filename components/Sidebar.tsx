@@ -20,7 +20,8 @@ import {
   Terminal,
   RefreshCw,
   Cpu,
-  Globe
+  Globe,
+  PlayCircle
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -60,7 +61,6 @@ const Sidebar: React.FC<SidebarProps> = ({
   const [customPrompt, setCustomPrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
 
-  // Check if we are inside AI Studio or in a standalone environment
   const isBridgeAvailable = !!(window as any).aistudio;
   const hasEnvKey = !!process.env.API_KEY && process.env.API_KEY !== "undefined";
 
@@ -135,8 +135,8 @@ const Sidebar: React.FC<SidebarProps> = ({
               <div className="pt-4 border-t border-slate-50">
                 <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest leading-relaxed px-4">
                   {!isBridgeAvailable 
-                    ? "Tip: To use standalone mode, add an API_KEY environment variable to your project settings." 
-                    : "Tip: Select a key from a paid GCP project to enable all features."
+                    ? "Standalone mode requires an API_KEY environment variable. Check the logs at the top for details." 
+                    : "Select a key from a paid GCP project to enable AI features."
                   }
                 </p>
               </div>
@@ -185,10 +185,10 @@ const Sidebar: React.FC<SidebarProps> = ({
             <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
               <div className="flex items-center justify-between mb-4">
                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Style Strategy</span>
-                 <div className={`flex items-center space-x-1.5 px-2 py-1 rounded-full border ${isKeySelected ? 'bg-green-50 border-green-100' : 'bg-red-50 border-red-100'}`}>
-                    {isKeySelected ? <Activity className="w-2.5 h-2.5 text-green-500" /> : <CloudOff className="w-2.5 h-2.5 text-red-500" />}
-                    <span className={`text-[8px] font-black uppercase ${isKeySelected ? 'text-green-700' : 'text-red-700'}`}>
-                      {isKeySelected ? 'Connected' : 'Disconnected'}
+                 <div className={`flex items-center space-x-1.5 px-2 py-1 rounded-full border ${isKeySelected ? 'bg-indigo-50 border-indigo-100' : 'bg-red-50 border-red-100'}`}>
+                    {isKeySelected ? <PlayCircle className="w-2.5 h-2.5 text-indigo-500" /> : <CloudOff className="w-2.5 h-2.5 text-red-500" />}
+                    <span className={`text-[8px] font-black uppercase ${isKeySelected ? 'text-indigo-700' : 'text-red-700'}`}>
+                      {isKeySelected ? 'Prototype Active' : 'Offline'}
                     </span>
                  </div>
               </div>
@@ -341,7 +341,7 @@ const Sidebar: React.FC<SidebarProps> = ({
            <div className="flex items-center space-x-1">
               <div className={`w-1.5 h-1.5 rounded-full ${isKeySelected ? 'bg-green-500 shadow-[0_0_5px_rgba(34,197,94,1)]' : 'bg-red-500'}`}></div>
               <span className={`text-[8px] font-black uppercase ${isKeySelected ? 'text-green-600' : 'text-red-600'}`}>
-                {isKeySelected ? 'Authenticated' : 'Offline'}
+                {isKeySelected ? 'Simulated' : 'Offline'}
               </span>
            </div>
         </div>
