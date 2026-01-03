@@ -18,16 +18,20 @@ Also, it can detects if you copied this sentence from the internet: "To be or no
   const [toneTarget, setToneTarget] = useState<ToneTarget>(ToneTarget.PROFESSIONAL);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [promptCount, setPromptCount] = useState<number>(0);
-  const [isKeySelected, setIsKeySelected] = useState<boolean>(false);
+  const [isKeySelected, setIsKeySelected] = useState<boolean>(true); // Default to true to prevent blocking if AI key is pre-injected
 
   // Sync key selection state
   const syncKeyStatus = useCallback(async () => {
-    if (window.aistudio && typeof window.aistudio.hasSelectedApiKey === 'function') {
-      const selected = await window.aistudio.hasSelectedApiKey();
-      setIsKeySelected(selected);
-      return selected;
+    try {
+      if (window.aistudio && typeof window.aistudio.hasSelectedApiKey === 'function') {
+        const selected = await window.aistudio.hasSelectedApiKey();
+        setIsKeySelected(selected);
+        return selected;
+      }
+    } catch (e) {
+      console.warn("Could not check key status", e);
     }
-    return false;
+    return true; // Assume true if we can't check
   }, []);
 
   useEffect(() => {
@@ -37,9 +41,16 @@ Also, it can detects if you copied this sentence from the internet: "To be or no
   }, [syncKeyStatus]);
 
   const handleConnectKey = async () => {
-    if (window.aistudio && typeof window.aistudio.openSelectKey === 'function') {
-      await window.aistudio.openSelectKey();
-      // Rule: Assume success after trigger to mitigate race condition
+    try {
+      if (window.aistudio && typeof window.aistudio.openSelectKey === 'function') {
+        await window.aistudio.openSelectKey();
+      } else {
+        console.log("window.aistudio.openSelectKey not found, bypassing overlay.");
+      }
+    } catch (e) {
+      console.error("Error opening key selection:", e);
+    } finally {
+      // CRITICAL: Mitigate race conditions by assuming success after trigger
       setIsKeySelected(true);
     }
   };
@@ -55,14 +66,6 @@ Also, it can detects if you copied this sentence from the internet: "To be or no
   const handleAnalyze = async () => {
     if (!text.trim()) return;
     
-    // Proactive check before starting
-    const currentStatus = await syncKeyStatus();
-    if (!currentStatus) {
-      alert("AI Access Locked: You must connect a Gemini API Key to use the grammar engine.");
-      handleConnectKey();
-      return;
-    }
-
     setIsAnalyzing(true);
     try {
       const result = await analyzeText(text, toneTarget);
@@ -73,9 +76,9 @@ Also, it can detects if you copied this sentence from the internet: "To be or no
       const errorMsg = error.message?.toLowerCase() || "";
       
       // Detailed error handling for Pro models
-      if (errorMsg.includes("not found") || errorMsg.includes("key") || errorMsg.includes("permission") || errorMsg.includes("403")) {
+      if (errorMsg.includes("not found") || errorMsg.includes("key") || errorMsg.includes("permission") || errorMsg.includes("403") || errorMsg.includes("401")) {
         setIsKeySelected(false);
-        alert("Gemini Pro Authentication Failed: Please ensure your API key belongs to a paid GCP project and has the 'gemini-3-pro-preview' model enabled.");
+        alert("Authentication Error: Your Gemini session has expired or the key is invalid. Please reconnect using the 'Connect Cloud Key' button.");
       } else {
         alert("Analysis Error: " + error.message);
       }
@@ -86,19 +89,17 @@ Also, it can detects if you copied this sentence from the internet: "To be or no
 
   const handleCheckPlagiarism = async () => {
     if (!text.trim()) return;
-    const currentStatus = await syncKeyStatus();
-    if (!currentStatus) {
-      handleConnectKey();
-      return;
-    }
-
     setPlagiarism(null);
     try {
       const result = await checkPlagiarism(text);
       setPlagiarism(result);
       incrementPrompts();
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
+      const errorMsg = error.message?.toLowerCase() || "";
+      if (errorMsg.includes("key") || errorMsg.includes("403")) {
+        setIsKeySelected(false);
+      }
     }
   };
 
@@ -163,18 +164,17 @@ Also, it can detects if you copied this sentence from the internet: "To be or no
   };
 
   const handleRewrite = async (instruction: string) => {
-    const currentStatus = await syncKeyStatus();
-    if (!currentStatus) {
-      handleConnectKey();
-      return;
-    }
-
     try {
       const rewrited = await generateRewrite(text, instruction);
       setText(rewrited);
       setAnalysis(null);
       incrementPrompts();
-    } catch (e) {
+    } catch (e: any) {
+      console.error(e);
+      const errorMsg = e.message?.toLowerCase() || "";
+      if (errorMsg.includes("key") || errorMsg.includes("403")) {
+        setIsKeySelected(false);
+      }
       alert("AI Rewrite failed. Please check your Gemini connection.");
     }
   };

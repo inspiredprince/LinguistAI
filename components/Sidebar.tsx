@@ -11,7 +11,6 @@ import {
   PieChart,
   Sparkles,
   CheckCheck,
-  GraduationCap,
   ChevronDown,
   Zap,
   Activity,
@@ -76,19 +75,22 @@ const Sidebar: React.FC<SidebarProps> = ({
     <div className="h-full bg-slate-50 border-l border-gray-100 flex flex-col w-full relative">
       {/* Dynamic API Connection Overlay */}
       {!isKeySelected && (
-        <div className="absolute inset-0 z-50 bg-slate-900/10 backdrop-blur-[2px] flex flex-col items-center justify-center p-8 text-center">
-          <div className="bg-white p-8 rounded-[2.5rem] shadow-2xl border border-indigo-100 max-w-sm animate-in zoom-in duration-300">
-            <div className="w-16 h-16 bg-indigo-600 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-xl shadow-indigo-200">
-              <Lock className="w-8 h-8 text-white" />
+        <div className="absolute inset-0 z-[60] bg-white/95 backdrop-blur-sm flex flex-col items-center justify-center p-8 text-center transition-all">
+          <div className="bg-white p-10 rounded-[3rem] shadow-[0_32px_64px_-12px_rgba(0,0,0,0.1)] border border-indigo-50 max-w-sm animate-in zoom-in duration-500">
+            <div className="w-20 h-20 bg-indigo-600 rounded-[2rem] flex items-center justify-center mx-auto mb-8 shadow-2xl shadow-indigo-200">
+              <Lock className="w-10 h-10 text-white" />
             </div>
-            <h3 className="text-lg font-black text-slate-900 mb-2 uppercase tracking-tight">AI Access Restricted</h3>
-            <p className="text-sm text-slate-500 mb-8 leading-relaxed font-medium">
-              Advanced grammar engine and 1,000 monthly prompts require a connected Gemini API Key.
+            <h3 className="text-xl font-black text-slate-900 mb-3 uppercase tracking-tight">Access Locked</h3>
+            <p className="text-sm text-slate-500 mb-10 leading-relaxed font-medium">
+              Connect your Gemini API Key to unlock advanced grammar analysis and your 1,000 monthly prompt quota.
             </p>
             
             <button 
-              onClick={onConnectKey}
-              className="w-full flex items-center justify-center space-x-3 py-4 bg-indigo-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-indigo-200 hover:bg-indigo-700 transition-all active:scale-95 mb-4"
+              onClick={(e) => {
+                e.stopPropagation();
+                onConnectKey();
+              }}
+              className="w-full flex items-center justify-center space-x-3 py-5 bg-indigo-600 text-white rounded-3xl font-black text-xs uppercase tracking-[0.2em] shadow-2xl shadow-indigo-100 hover:bg-indigo-700 hover:scale-[1.02] active:scale-95 transition-all mb-6 cursor-pointer"
             >
               <CloudLightning className="w-5 h-5" />
               <span>Connect Cloud Key</span>
@@ -98,9 +100,9 @@ const Sidebar: React.FC<SidebarProps> = ({
               href="https://ai.google.dev/gemini-api/docs/billing" 
               target="_blank" 
               rel="noopener noreferrer"
-              className="flex items-center justify-center space-x-2 text-[10px] font-black text-indigo-500 uppercase tracking-widest hover:text-indigo-700 transition-colors"
+              className="flex items-center justify-center space-x-2 text-[10px] font-black text-indigo-400 uppercase tracking-widest hover:text-indigo-600 transition-colors"
             >
-              <span>View Billing Requirements</span>
+              <span>View Requirements</span>
               <ExternalLink className="w-3 h-3" />
             </a>
           </div>
