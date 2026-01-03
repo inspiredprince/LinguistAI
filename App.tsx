@@ -5,7 +5,7 @@ import Editor from './components/Editor';
 import Sidebar from './components/Sidebar';
 import { AnalysisResult, PlagiarismResult, Suggestion, ToneTarget, SuggestionType } from './types';
 import { analyzeText, checkPlagiarism, generateRewrite } from './services/geminiService';
-import { AlertCircle, Copy, X, RefreshCw, Terminal, PlayCircle } from 'lucide-react';
+import { AlertCircle, Copy, X, RefreshCw, Terminal, PlayCircle, Clock } from 'lucide-react';
 
 const MOCK_ANALYSIS: AnalysisResult = {
   suggestions: [
@@ -78,6 +78,7 @@ Also, it can detects if you copied this sentence from the internet: "To be or no
     !!process.env.API_KEY && process.env.API_KEY !== "undefined" && process.env.API_KEY !== ""
   ); 
   const [globalError, setGlobalError] = useState<string | null>(null);
+  const [isQuotaExceeded, setIsQuotaExceeded] = useState(false);
 
   const syncKeyStatus = useCallback(async () => {
     try {
@@ -105,6 +106,7 @@ Also, it can detects if you copied this sentence from the internet: "To be or no
 
   const handleConnectKey = async () => {
     setGlobalError(null);
+    setIsQuotaExceeded(false);
     const win = window as any;
     
     if (win.aistudio && typeof win.aistudio.openSelectKey === 'function') {
@@ -125,7 +127,7 @@ Also, it can detects if you copied this sentence from the internet: "To be or no
   const handleEnterDemo = () => {
     setIsDemoMode(true);
     setGlobalError(null);
-    // Auto-analyze to show something immediately in demo mode
+    setIsQuotaExceeded(false);
     setTimeout(() => {
         handleAnalyze();
     }, 100);
@@ -146,9 +148,21 @@ Also, it can detects if you copied this sentence from the internet: "To be or no
     });
   };
 
+  const handleError = (error: any) => {
+    const msg = error.message || JSON.stringify(error);
+    if (msg.includes("429") || msg.includes("RESOURCE_EXHAUSTED") || msg.includes("quota")) {
+      setIsQuotaExceeded(true);
+      setGlobalError("API Quota Reached: You have sent too many requests. Please wait a few seconds or upgrade your Gemini API plan.");
+    } else {
+      setGlobalError(msg);
+    }
+    if (msg.includes("API Key") || msg.includes("key")) setIsKeySelected(false);
+  };
+
   const handleAnalyze = async () => {
     if (!text.trim()) return;
     setGlobalError(null);
+    setIsQuotaExceeded(false);
     setIsAnalyzing(true);
     
     try {
@@ -161,9 +175,7 @@ Also, it can detects if you copied this sentence from the internet: "To be or no
       }
       incrementPrompts();
     } catch (error: any) {
-      const msg = error.message || "Unknown Engine Fault";
-      setGlobalError(msg);
-      if (msg.includes("API Key")) setIsKeySelected(false);
+      handleError(error);
     } finally {
       setIsAnalyzing(false);
     }
@@ -173,6 +185,7 @@ Also, it can detects if you copied this sentence from the internet: "To be or no
     if (!text.trim()) return;
     setPlagiarism(null);
     setGlobalError(null);
+    setIsQuotaExceeded(false);
     try {
       if (isDemoMode && !isKeySelected) {
         await new Promise(r => setTimeout(r, 1200));
@@ -183,7 +196,7 @@ Also, it can detects if you copied this sentence from the internet: "To be or no
       }
       incrementPrompts();
     } catch (error: any) {
-      setGlobalError(`Search Engine Error: ${error.message}`);
+      handleError(error);
     }
   };
 
@@ -225,6 +238,7 @@ Also, it can detects if you copied this sentence from the internet: "To be or no
 
   const handleRewrite = async (instruction: string) => {
     setGlobalError(null);
+    setIsQuotaExceeded(false);
     try {
       if (isDemoMode && !isKeySelected) {
         await new Promise(r => setTimeout(r, 800));
@@ -236,7 +250,7 @@ Also, it can detects if you copied this sentence from the internet: "To be or no
       setAnalysis(null);
       incrementPrompts();
     } catch (e: any) {
-      setGlobalError(`Rewrite Failed: ${e.message}`);
+      handleError(e);
     }
   };
 
@@ -245,24 +259,26 @@ Also, it can detects if you copied this sentence from the internet: "To be or no
       <Navbar />
       
       {globalError && (
-        <div className="bg-gradient-to-r from-red-600 to-indigo-700 text-white px-6 py-4 flex items-center justify-between animate-in slide-in-from-top duration-500 z-[100] shadow-2xl">
+        <div className={`text-white px-6 py-4 flex items-center justify-between animate-in slide-in-from-top duration-500 z-[100] shadow-2xl ${isQuotaExceeded ? 'bg-amber-600' : 'bg-red-600'}`}>
           <div className="flex items-center space-x-4">
             <div className="p-2 bg-white/20 rounded-xl">
-              <Terminal className="w-5 h-5" />
+              {isQuotaExceeded ? <Clock className="w-5 h-5" /> : <Terminal className="w-5 h-5" />}
             </div>
-            <div>
-              <span className="text-[9px] font-black uppercase tracking-[0.2em] opacity-60 block">Diagnostic Failure</span>
-              <p className="text-xs font-bold font-mono">{globalError}</p>
+            <div className="max-w-xl">
+              <span className="text-[9px] font-black uppercase tracking-[0.2em] opacity-60 block">
+                {isQuotaExceeded ? 'Rate Limit Detected' : 'Diagnostic Failure'}
+              </span>
+              <p className="text-xs font-bold leading-relaxed">{globalError}</p>
             </div>
           </div>
           <div className="flex items-center space-x-2">
             {!isDemoMode && (
                <button 
                 onClick={handleEnterDemo}
-                className="flex items-center space-x-2 px-4 py-2 bg-indigo-500 hover:bg-indigo-400 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
+                className="flex items-center space-x-2 px-4 py-2 bg-white/20 hover:bg-white/30 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
               >
                 <PlayCircle className="w-3.5 h-3.5" />
-                <span>Launch Prototype</span>
+                <span>Switch to Demo</span>
               </button>
             )}
             <button 
@@ -273,7 +289,7 @@ Also, it can detects if you copied this sentence from the internet: "To be or no
               <span>Copy Log</span>
             </button>
             <button 
-              onClick={() => setGlobalError(null)}
+              onClick={() => { setGlobalError(null); setIsQuotaExceeded(false); }}
               className="p-2 hover:bg-white/10 rounded-full transition-all"
             >
               <X className="w-5 h-5" />
