@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Navbar from './components/Navbar';
 import Editor from './components/Editor';
 import Sidebar from './components/Sidebar';
@@ -18,27 +18,29 @@ Also, it can detects if you copied this sentence from the internet: "To be or no
   const [toneTarget, setToneTarget] = useState<ToneTarget>(ToneTarget.PROFESSIONAL);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [promptCount, setPromptCount] = useState<number>(0);
-  const [isKeySelected, setIsKeySelected] = useState<boolean>(true);
+  const [isKeySelected, setIsKeySelected] = useState<boolean>(false);
+
+  // Sync key selection state
+  const syncKeyStatus = useCallback(async () => {
+    if (window.aistudio && typeof window.aistudio.hasSelectedApiKey === 'function') {
+      const selected = await window.aistudio.hasSelectedApiKey();
+      setIsKeySelected(selected);
+      return selected;
+    }
+    return false;
+  }, []);
 
   useEffect(() => {
     const saved = localStorage.getItem('linguist_prompts');
     if (saved) setPromptCount(parseInt(saved, 10));
-    
-    // Check if API key is selected on mount
-    const checkKey = async () => {
-      if (window.aistudio && typeof window.aistudio.hasSelectedApiKey === 'function') {
-        const selected = await window.aistudio.hasSelectedApiKey();
-        setIsKeySelected(selected);
-      }
-    };
-    checkKey();
-  }, []);
+    syncKeyStatus();
+  }, [syncKeyStatus]);
 
   const handleConnectKey = async () => {
     if (window.aistudio && typeof window.aistudio.openSelectKey === 'function') {
       await window.aistudio.openSelectKey();
+      // Rule: Assume success after trigger to mitigate race condition
       setIsKeySelected(true);
-      // After selection, we assume success and proceed
     }
   };
 
@@ -52,22 +54,30 @@ Also, it can detects if you copied this sentence from the internet: "To be or no
 
   const handleAnalyze = async () => {
     if (!text.trim()) return;
+    
+    // Proactive check before starting
+    const currentStatus = await syncKeyStatus();
+    if (!currentStatus) {
+      alert("AI Access Locked: You must connect a Gemini API Key to use the grammar engine.");
+      handleConnectKey();
+      return;
+    }
+
     setIsAnalyzing(true);
     try {
       const result = await analyzeText(text, toneTarget);
       setAnalysis(result);
-      setIsKeySelected(true);
       incrementPrompts();
     } catch (error: any) {
       console.error("Analysis Failed:", error);
       const errorMsg = error.message?.toLowerCase() || "";
-      const isAuthError = errorMsg.includes("key") || errorMsg.includes("api") || errorMsg.includes("not found") || errorMsg.includes("403") || errorMsg.includes("401");
       
-      if (isAuthError) {
+      // Detailed error handling for Pro models
+      if (errorMsg.includes("not found") || errorMsg.includes("key") || errorMsg.includes("permission") || errorMsg.includes("403")) {
         setIsKeySelected(false);
-        alert("AI Authentication Failed: Please click the 'Connect AI' button in the sidebar to select a valid API key from a paid GCP project.");
+        alert("Gemini Pro Authentication Failed: Please ensure your API key belongs to a paid GCP project and has the 'gemini-3-pro-preview' model enabled.");
       } else {
-        alert("Analysis Failed: " + error.message);
+        alert("Analysis Error: " + error.message);
       }
     } finally {
       setIsAnalyzing(false);
@@ -76,6 +86,12 @@ Also, it can detects if you copied this sentence from the internet: "To be or no
 
   const handleCheckPlagiarism = async () => {
     if (!text.trim()) return;
+    const currentStatus = await syncKeyStatus();
+    if (!currentStatus) {
+      handleConnectKey();
+      return;
+    }
+
     setPlagiarism(null);
     try {
       const result = await checkPlagiarism(text);
@@ -147,13 +163,19 @@ Also, it can detects if you copied this sentence from the internet: "To be or no
   };
 
   const handleRewrite = async (instruction: string) => {
+    const currentStatus = await syncKeyStatus();
+    if (!currentStatus) {
+      handleConnectKey();
+      return;
+    }
+
     try {
       const rewrited = await generateRewrite(text, instruction);
       setText(rewrited);
       setAnalysis(null);
       incrementPrompts();
     } catch (e) {
-      alert("AI Rewrite failed. Please ensure your Gemini API key is connected.");
+      alert("AI Rewrite failed. Please check your Gemini connection.");
     }
   };
 

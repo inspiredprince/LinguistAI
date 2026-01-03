@@ -16,7 +16,9 @@ import {
   Zap,
   Activity,
   CloudOff,
-  CloudLightning
+  CloudLightning,
+  ExternalLink,
+  Lock
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -71,20 +73,37 @@ const Sidebar: React.FC<SidebarProps> = ({
   };
 
   return (
-    <div className="h-full bg-slate-50 border-l border-gray-100 flex flex-col w-full">
-      {/* API Key Connection Call-to-Action */}
+    <div className="h-full bg-slate-50 border-l border-gray-100 flex flex-col w-full relative">
+      {/* Dynamic API Connection Overlay */}
       {!isKeySelected && (
-        <div className="p-4 bg-indigo-600 text-white animate-pulse">
-          <button 
-            onClick={onConnectKey}
-            className="w-full flex items-center justify-center space-x-3 py-2 bg-white text-indigo-700 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-xl hover:bg-indigo-50 transition-colors"
-          >
-            <CloudLightning className="w-4 h-4" />
-            <span>Connect Gemini API Key</span>
-          </button>
-          <p className="text-[8px] mt-2 text-center text-indigo-100 font-bold uppercase tracking-tighter">
-            Required for Advanced Writing Analysis
-          </p>
+        <div className="absolute inset-0 z-50 bg-slate-900/10 backdrop-blur-[2px] flex flex-col items-center justify-center p-8 text-center">
+          <div className="bg-white p-8 rounded-[2.5rem] shadow-2xl border border-indigo-100 max-w-sm animate-in zoom-in duration-300">
+            <div className="w-16 h-16 bg-indigo-600 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-xl shadow-indigo-200">
+              <Lock className="w-8 h-8 text-white" />
+            </div>
+            <h3 className="text-lg font-black text-slate-900 mb-2 uppercase tracking-tight">AI Access Restricted</h3>
+            <p className="text-sm text-slate-500 mb-8 leading-relaxed font-medium">
+              Advanced grammar engine and 1,000 monthly prompts require a connected Gemini API Key.
+            </p>
+            
+            <button 
+              onClick={onConnectKey}
+              className="w-full flex items-center justify-center space-x-3 py-4 bg-indigo-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-indigo-200 hover:bg-indigo-700 transition-all active:scale-95 mb-4"
+            >
+              <CloudLightning className="w-5 h-5" />
+              <span>Connect Cloud Key</span>
+            </button>
+            
+            <a 
+              href="https://ai.google.dev/gemini-api/docs/billing" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="flex items-center justify-center space-x-2 text-[10px] font-black text-indigo-500 uppercase tracking-widest hover:text-indigo-700 transition-colors"
+            >
+              <span>View Billing Requirements</span>
+              <ExternalLink className="w-3 h-3" />
+            </a>
+          </div>
         </div>
       )}
 
@@ -121,7 +140,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                  <div className={`flex items-center space-x-1.5 px-2 py-1 rounded-full border ${isKeySelected ? 'bg-green-50 border-green-100' : 'bg-red-50 border-red-100'}`}>
                     {isKeySelected ? <Activity className="w-2.5 h-2.5 text-green-500" /> : <CloudOff className="w-2.5 h-2.5 text-red-500" />}
                     <span className={`text-[8px] font-black uppercase ${isKeySelected ? 'text-green-700' : 'text-red-700'}`}>
-                      {isKeySelected ? 'Connected' : 'Disconnected'}
+                      {isKeySelected ? 'Connected' : 'Auth Needed'}
                     </span>
                  </div>
               </div>
@@ -162,42 +181,6 @@ const Sidebar: React.FC<SidebarProps> = ({
                     <span className="text-[10px] font-black text-slate-700 block">{analysis.readabilityLevel}</span>
                   </div>
                 </div>
-
-                {analysis.learningReview && (
-                  <div className="bg-white rounded-3xl border border-indigo-50 overflow-hidden shadow-sm">
-                    <button 
-                      onClick={() => setIsReviewOpen(!isReviewOpen)}
-                      className="w-full flex items-center justify-between p-6 bg-indigo-50/10 hover:bg-indigo-50/30 transition-colors"
-                    >
-                      <div className="flex items-center space-x-3">
-                        <GraduationCap className="w-5 h-5 text-indigo-600" />
-                        <span className="text-xs font-black text-indigo-900 uppercase tracking-widest">Growth Review</span>
-                      </div>
-                      {isReviewOpen ? <ChevronDown className="w-4 h-4 text-indigo-400" /> : <ChevronRight className="w-4 h-4 text-indigo-400" />}
-                    </button>
-                    
-                    {isReviewOpen && (
-                      <div className="p-6 space-y-6 border-t border-indigo-50 bg-white">
-                        <div>
-                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Focus Patterns</p>
-                          <div className="flex flex-wrap gap-2">
-                            {analysis.learningReview.grammarFocusAreas.map((area, idx) => (
-                              <span key={idx} className="px-4 py-1.5 bg-slate-50 text-slate-600 rounded-full text-[9px] font-black border border-slate-100 uppercase tracking-tight">
-                                {area}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                        <div>
-                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">AI Expert Commentary</p>
-                          <p className="text-xs text-slate-600 leading-relaxed font-medium italic bg-indigo-50/30 p-4 rounded-2xl border border-indigo-50">
-                            "{analysis.learningReview.generalFeedback}"
-                          </p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
 
                 <div className="space-y-4">
                   {analysis.suggestions.length > 0 && (
