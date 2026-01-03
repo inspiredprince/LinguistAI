@@ -2,7 +2,7 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { AnalysisResult, PlagiarismResult, SuggestionType, ToneTarget } from "../types";
 
-// gemini-3-flash-preview: High quota, low latency, excellent for high-volume editing tasks.
+// gemini-3-flash-preview: Best balance of high quota and linguistic reasoning for free tier.
 const MODEL_NAME = "gemini-3-flash-preview"; 
 
 const callGemini = async (fn: (ai: GoogleGenAI) => Promise<any>) => {
@@ -20,40 +20,40 @@ export const analyzeText = async (
 ): Promise<AnalysisResult> => {
   return await callGemini(async (ai) => {
     const prompt = `
-      Act as a pedantic Senior Copy Editor. Your goal is to find EVERY flaw in the provided text.
+      You are the world's most rigorous Linguistic Auditor. Your specialty is detecting 100% of punctuation, syntax, and grammatical errors.
       
-      DIAGNOSTIC CHECKLIST (Execute all):
-      1. MECHANICAL: Check for typos, subtle spelling errors, and missing/extra spaces.
-      2. SYNTACTIC: Find subject-verb disagreements, incorrect tenses, and dangling modifiers.
-      3. PUNCTUATION: Identify missing Oxford commas, misplaced semicolons, and curly vs straight quote inconsistencies.
-      4. STYLE: Flag passive voice, repetitive words, and weak verbs.
-      5. TONE: Grade the text strictly against a "${targetTone}" profile.
-      
-      CRITICAL: Do not ignore "small" things. Even if the text is generally good, find ways to make it perfect.
-      
-      Return a JSON object:
+      CRITICAL OPERATIONAL PROTOCOL:
+      1. DETECT: Find every typo, missing comma (especially Oxford commas), misplaced semicolon, and clunky syntactic structure.
+      2. VERIFY: Before finalizing a suggestion, perform a "Self-Audit". Ensure your "suggestedText" is itself 100% perfect.
+      3. SYNTAX: Identify "wordy" or passive phrasing that obscures meaning.
+      4. PUNCTUATION: Check terminal marks, apostrophe placement, and parenthetical commas.
+      5. TONE: Ensure strict alignment with the "${targetTone}" profile. If the tone is Professional, eliminate all slang or informal contractions.
+
+      GOAL: Zero errors remain in the text after your suggestions are applied.
+
+      Return ONLY a valid JSON object:
       {
         "suggestions": [{
           "type": "GRAMMAR" | "CLARITY" | "TONE" | "ENGAGEMENT" | "STRATEGIC",
           "originalText": "exact text from the original",
-          "suggestedText": "the correction",
-          "explanation": "why this change is needed",
+          "suggestedText": "the flawless correction",
+          "explanation": "concise linguistic reasoning",
           "context": "short snippet for location"
         }],
         "overallScore": 0-100,
         "toneDetected": "string",
         "readabilityScore": 0-100,
         "readabilityLevel": "string",
-        "summary": "One sentence summary.",
+        "summary": "One sentence overview of quality.",
         "learningReview": {
-          "grammarFocusAreas": ["Topic A", "Topic B"],
-          "vocabularyTips": "Specific advice on word choice",
-          "generalFeedback": "Comprehensive critique",
-          "recommendedResources": ["Book/Guide Name"]
+          "grammarFocusAreas": ["Specific Topic 1", "Specific Topic 2"],
+          "vocabularyTips": "High-level lexical advice",
+          "generalFeedback": "A deep critique of the writer's habits",
+          "recommendedResources": ["Specific Grammar Guide or Tool"]
         }
       }
 
-      TEXT TO SCAN:
+      TEXT TO AUDIT:
       "${text}"
     `;
 
@@ -62,16 +62,18 @@ export const analyzeText = async (
       contents: prompt,
       config: {
         responseMimeType: "application/json",
-        temperature: 0.1, // Lower temperature for more consistent, accurate grammar results
+        // Using 0.0 for maximum accuracy and zero "creativity" in grammar checks
+        temperature: 0, 
+        topP: 0.1,
       },
     });
 
-    if (!response.text) throw new Error("Engine returned empty result.");
+    if (!response.text) throw new Error("Linguistic Engine returned no data.");
     
     const cleanedText = response.text.replace(/```json|```/gi, '').trim();
     const result = JSON.parse(cleanedText) as AnalysisResult;
     
-    // Ensure all suggestions have unique IDs and valid types
+    // Stabilize suggestion objects
     result.suggestions = result.suggestions.map((s, i) => ({ 
       ...s, 
       id: `sug-${Date.now()}-${i}`,
@@ -86,7 +88,7 @@ export const checkPlagiarism = async (text: string): Promise<PlagiarismResult> =
   return await callGemini(async (ai) => {
     const response = await ai.models.generateContent({
       model: MODEL_NAME,
-      contents: `Search for matches for this text segment: "${text.substring(0, 800)}"`,
+      contents: `Perform a global originality scan for: "${text.substring(0, 800)}"`,
       config: { tools: [{ googleSearch: {} }] },
     });
 
@@ -96,7 +98,7 @@ export const checkPlagiarism = async (text: string): Promise<PlagiarismResult> =
       for (const chunk of groundingChunks) {
         if (chunk.web) {
           matches.push({
-            segment: "External text match.",
+            segment: "Web match detected.",
             sourceUrl: chunk.web.uri,
             sourceTitle: chunk.web.title,
             similarity: "Verified"
@@ -117,7 +119,8 @@ export const generateRewrite = async (text: string, instruction: string): Promis
   return await callGemini(async (ai) => {
     const response = await ai.models.generateContent({
       model: MODEL_NAME,
-      contents: `Rewrite this text: "${instruction}".\n\nOriginal: "${text}"`,
+      contents: `Refine this text to be grammatically perfect following this instruction: "${instruction}".\n\nOriginal: "${text}"`,
+      config: { temperature: 0.2 }
     });
     return response.text?.trim() || text;
   });
