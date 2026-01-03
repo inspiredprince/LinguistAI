@@ -7,7 +7,8 @@ const getAIClient = () => {
   return new GoogleGenAI({ apiKey: process.env.API_KEY as string });
 };
 
-const MODEL_NAME = "gemini-3-pro-preview"; // Use Pro for advanced writing assistance
+// gemini-3-flash-preview is more resilient for general purpose writing tasks
+const MODEL_NAME = "gemini-3-flash-preview"; 
 
 export const analyzeText = async (
   text: string, 
@@ -90,8 +91,9 @@ export const analyzeText = async (
     return result;
 
   } catch (error: any) {
-    console.error("Gemini Analysis Error:", error);
-    throw error;
+    console.error("Gemini Analysis Error (Detailed):", error);
+    // Explicitly throw the error with message for the UI to catch
+    throw new Error(error.message || "Unknown error occurred during analysis.");
   }
 };
 

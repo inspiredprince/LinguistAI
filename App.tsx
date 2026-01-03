@@ -5,6 +5,7 @@ import Editor from './components/Editor';
 import Sidebar from './components/Sidebar';
 import { AnalysisResult, PlagiarismResult, Suggestion, ToneTarget } from './types';
 import { analyzeText, checkPlagiarism, generateRewrite } from './services/geminiService';
+import { AlertCircle, Copy, X, RefreshCw } from 'lucide-react';
 
 const App: React.FC = () => {
   const [text, setText] = useState<string>(`Welcome to LinguistAI! This are a demo text to show you how the app work. It include some grammar mistaks and tone issues.
@@ -18,8 +19,8 @@ Also, it can detects if you copied this sentence from the internet: "To be or no
   const [toneTarget, setToneTarget] = useState<ToneTarget>(ToneTarget.PROFESSIONAL);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [promptCount, setPromptCount] = useState<number>(0);
-  // Default to true so users aren't blocked if they already have an environment key
   const [isKeySelected, setIsKeySelected] = useState<boolean>(true); 
+  const [globalError, setGlobalError] = useState<string | null>(null);
 
   const syncKeyStatus = useCallback(async () => {
     try {
@@ -42,22 +43,24 @@ Also, it can detects if you copied this sentence from the internet: "To be or no
   }, [syncKeyStatus]);
 
   const handleConnectKey = () => {
-    console.log("Attempting to connect key...");
-    // CRITICAL: Set state immediately to unlock the UI and mitigate race conditions/hangs
+    setGlobalError(null);
     setIsKeySelected(true);
-
     try {
       const win = window as any;
       if (win.aistudio && typeof win.aistudio.openSelectKey === 'function') {
-        // Fire and forget - do not await here as it might hang the UI until dialog closes
         win.aistudio.openSelectKey().catch((err: any) => {
-          console.error("Delayed openSelectKey error:", err);
+          setGlobalError("Failed to open key selector: " + err.message);
         });
-      } else {
-        console.warn("aistudio.openSelectKey not found in current context.");
       }
     } catch (e) {
-      console.error("Critical error in key selection trigger:", e);
+      setGlobalError("Critical error triggering key selection.");
+    }
+  };
+
+  const handleCopyError = () => {
+    if (globalError) {
+      navigator.clipboard.writeText(globalError);
+      alert("Error copied to clipboard!");
     }
   };
 
@@ -71,7 +74,7 @@ Also, it can detects if you copied this sentence from the internet: "To be or no
 
   const handleAnalyze = async () => {
     if (!text.trim()) return;
-    
+    setGlobalError(null);
     setIsAnalyzing(true);
     try {
       const result = await analyzeText(text, toneTarget);
@@ -79,14 +82,11 @@ Also, it can detects if you copied this sentence from the internet: "To be or no
       incrementPrompts();
     } catch (error: any) {
       console.error("Analysis Failed:", error);
-      const errorMsg = error.message?.toLowerCase() || "";
+      const msg = error.message || "Unknown error";
+      setGlobalError(msg);
       
-      // Check for common auth/model errors
-      if (errorMsg.includes("not found") || errorMsg.includes("key") || errorMsg.includes("403") || errorMsg.includes("401")) {
+      if (msg.toLowerCase().includes("not found") || msg.toLowerCase().includes("key") || msg.toLowerCase().includes("403")) {
         setIsKeySelected(false);
-        alert("Authentication Error: Your Gemini session is invalid or the 'gemini-3-pro-preview' model is not enabled for your key. \n\nIMPORTANT: This model requires a PAID API key from a project with billing enabled. Please reconnect using the 'Connect Cloud Key' button.");
-      } else {
-        alert("Analysis Error: " + error.message);
       }
     } finally {
       setIsAnalyzing(false);
@@ -96,15 +96,14 @@ Also, it can detects if you copied this sentence from the internet: "To be or no
   const handleCheckPlagiarism = async () => {
     if (!text.trim()) return;
     setPlagiarism(null);
+    setGlobalError(null);
     try {
       const result = await checkPlagiarism(text);
       setPlagiarism(result);
       incrementPrompts();
     } catch (error: any) {
-      const errorMsg = error.message?.toLowerCase() || "";
-      if (errorMsg.includes("key") || errorMsg.includes("403")) {
-        setIsKeySelected(false);
-      }
+      setGlobalError(error.message || "Plagiarism check failed.");
+      if (error.message?.toLowerCase().includes("key")) setIsKeySelected(false);
     }
   };
 
@@ -169,23 +168,56 @@ Also, it can detects if you copied this sentence from the internet: "To be or no
   };
 
   const handleRewrite = async (instruction: string) => {
+    setGlobalError(null);
     try {
       const rewrited = await generateRewrite(text, instruction);
       setText(rewrited);
       setAnalysis(null);
       incrementPrompts();
     } catch (e: any) {
-      const errorMsg = e.message?.toLowerCase() || "";
-      if (errorMsg.includes("key") || errorMsg.includes("403")) {
-        setIsKeySelected(false);
-      }
-      alert("AI Rewrite failed. Please ensure you are using a paid Gemini API key.");
+      setGlobalError(e.message || "AI Rewrite failed.");
     }
   };
 
   return (
     <div className="flex flex-col h-screen bg-white overflow-hidden text-slate-900">
       <Navbar />
+      
+      {/* Sleek Error Notification Banner */}
+      {globalError && (
+        <div className="bg-gradient-to-r from-red-600 to-indigo-700 text-white px-6 py-3 flex items-center justify-between animate-in slide-in-from-top duration-300 z-[100] shadow-2xl">
+          <div className="flex items-center space-x-3 overflow-hidden">
+            <AlertCircle className="w-5 h-5 flex-shrink-0" />
+            <div className="flex flex-col">
+              <span className="text-[10px] font-black uppercase tracking-widest opacity-70">System Exception</span>
+              <p className="text-xs font-bold truncate max-w-xl">{globalError}</p>
+            </div>
+          </div>
+          <div className="flex items-center space-x-2">
+            <button 
+              onClick={handleCopyError}
+              className="flex items-center space-x-1 px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all"
+            >
+              <Copy className="w-3 h-3" />
+              <span>Copy</span>
+            </button>
+            <button 
+              onClick={handleConnectKey}
+              className="flex items-center space-x-1 px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all"
+            >
+              <RefreshCw className="w-3 h-3" />
+              <span>Reconnect</span>
+            </button>
+            <button 
+              onClick={() => setGlobalError(null)}
+              className="p-1.5 hover:bg-white/10 rounded-full transition-all"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
       <main className="flex-1 flex overflow-hidden">
         <div className="flex-1 p-10 overflow-hidden flex flex-col max-w-7xl mx-auto w-full">
           <Editor 
